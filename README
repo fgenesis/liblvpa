@@ -1,0 +1,121 @@
+
+LVPA -- Lost Vikings Project Archive
+
+Originally written for https://github.com/fgenesis/lv3proj
+- hence the name.
+
+----------[ About ]------------
+
+LVPA is a library and container file format optimized for games.
+It features a few compression algorithms to choose from,
+optional 2-stage data encryption, multiple solid blocks for coherent
+data for better compression and faster loading,
+and is best suited for static/pre-generated data containers.
+
+A command line packer/unpacker (lvpak) is included.
+It can deal with listfiles, which allow to specify packing settings down to each single file.
+See lvpak.txt for more documentation about it.
+
+Bindings for ttvfs (https://github.com/fgenesis/ttvfs) are included,
+which allows to merge files on disk and inside LVPA containers transparently,
+in a way that the embedding application does not have to care where to load its data from.
+
+As a special feature for data safety it is possible to create
+encrypted LVPA containers that can be read normally by the embedding application,
+but that are not possible to extract even if the encryption key is known.
+(Not by normal means, at least. "Scrambled" files are considerably
+harder to unpack than just encrypted files, as long as the file names
+are known only to those who created the container.)
+As encryption an ARC4 variant is used, that is about 3-4x faster than the original,
+and should be more secure (however, i can't proof this mathematically, sorry :) -
+- if you can, drop me a mail!). Hashing is done with SHA256.
+By changing a few #defines any other symmetric cipher and hashing algorithm can be used,
+if a personalized (and incompatible) version is desired.
+
+This library is dual-licensed under the zlib license or GPL v2+ (see below).
+
+If you use this code and like it, feel free to send me an email to
+googlemail.com with false.genesis@ prepended.
+- that'd make me happy.
+Patches/improvements are welcome!
+
+----------[ Howto ]------------
+
+Build project/makefiles with CMake. It has sort of sane defaults so it should build
+out of the box.
+
+$ mkdir build
+$ cd build
+$ cmake ..
+$ make
+
+In the default configuration it comes with LZMA, LZF, and zlib as compression
+backends, lvpak (the command line packer/unpacker),
+and a test binary to verify that everything works.
+In this configuration, the zlib license is applicable (see below).
+You can additionally:
+- enable LZO as additional compression backend
+- build LVPA <-> ttvfs bindings 
+- configure everything to link statically (if building on windows with MSVC)
+
+
+---------[ License ]----------
+Copyright (C) 2011 False.Genesis
+
+This software is dual-licensed depending on the included external
+libraries, which have the following licenses:
+
+LZF  - BSD license (2-clause) or GPL v2+
+LZMA - public domain
+zlib - zlib license
+LZO  - GPL v2+
+Mersenne Twister random number generator - BSD license (3-clause)
+
+If no support for LZO is included, this library is licensed under the
+zlib license.
+Otherwise, LZO support makes the zlib license inapplicable, in this case
+this library is licensed under the GPL v2+.
+
+Specifically, the dual-licensing applies to all files that do not have
+an explicit copyright/license boilerplate, in the following subdirectories:
+
+include, lvpa, lvpa_ttvfs, lvpak, tests
+
+
+Below both licenses for reference:
+
+--- zlib license ----------------
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+-------------------------------
+
+--- GNU General Public License version 2 ("GPL v2+") ----
+
+LVPA is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+----------------------------------------------------------
