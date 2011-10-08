@@ -1,0 +1,11 @@
+// Note: The order here must match the ordinal declarations in lzhamdll.def!
+LZHAM_DLL_FUNC_NAME(lzham_get_version)
+LZHAM_DLL_FUNC_NAME(lzham_set_memory_callbacks)
+LZHAM_DLL_FUNC_NAME(lzham_compress_init)
+LZHAM_DLL_FUNC_NAME(lzham_compress)
+LZHAM_DLL_FUNC_NAME(lzham_compress_deinit)
+LZHAM_DLL_FUNC_NAME(lzham_compress_memory)
+LZHAM_DLL_FUNC_NAME(lzham_decompress_init)
+LZHAM_DLL_FUNC_NAME(lzham_decompress)
+LZHAM_DLL_FUNC_NAME(lzham_decompress_deinit)
+LZHAM_DLL_FUNC_NAME(lzham_decompress_memory)
