@@ -283,6 +283,11 @@ public:
         _buf = (uint8*)p;
     }
 
+    void _setDelFunc(delete_func f)
+    {
+        _delfunc = f;
+    }
+
 protected:
 
     void _delete(void)
