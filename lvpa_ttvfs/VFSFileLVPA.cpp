@@ -29,7 +29,7 @@ VFSFileLVPA::~VFSFileLVPA()
         delete [] _fixedStr;
 }
 
-bool VFSFileLVPA::open(const char *fn /* = NULL */, char *mode /* = NULL */)
+bool VFSFileLVPA::open(const char *fn /* = NULL */, const char *mode /* = NULL */)
 {
     VFS_GUARD_OPT(this);
 

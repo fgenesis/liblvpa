@@ -1040,6 +1040,14 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
     return true;
 }
 
+static bool _memnull(void *buf, uint32 size)
+{
+    for(uint32 i = 0; i < size; ++i)
+        if(((const char*)buf)[i] != 0)
+            return false;
+    return true;
+}
+
 memblock LVPAFile::_PrepareFile(LVPAFileHeader& h, bool checkCRC /* = true */)
 {
     // h.good is set to false if there was a previous attempt to load the file that failed irrecoverably
@@ -1107,6 +1115,8 @@ memblock LVPAFile::_PrepareFile(LVPAFileHeader& h, bool checkCRC /* = true */)
         return memblock();
     }
 
+    DEBUG(ASSERT(_memnull(h.data.ptr + h.data.size, LVPA_EXTRA_BUFSIZE)));
+
     return h.data;
 }
 
@@ -1164,11 +1174,12 @@ memblock LVPAFile::_UnpackFile(LVPAFileHeader& h)
         if(target.size)
             buf->read(target.ptr, target.size);
 
-        memset(target.ptr + target.size, 0, LVPA_EXTRA_BUFSIZE); // zero out extra space
+        
 
         delete buf;
     }
 
+    memset(target.ptr + target.size, 0, LVPA_EXTRA_BUFSIZE); // zero out extra space
     return target;
 }
 

@@ -15,7 +15,7 @@ class VFSFileLVPA : public VFSFile
 public:
     VFSFileLVPA(LVPA_NAMESPACE_IMPL LVPAFile *src, unsigned int headerId);
     virtual ~VFSFileLVPA();
-    virtual bool open(const char *fn = NULL, char *mode = NULL);
+    virtual bool open(const char *fn = NULL, const char *mode = NULL);
     virtual bool isopen(void) const;
     virtual bool iseof(void) const;
     virtual const char *name(void) const;

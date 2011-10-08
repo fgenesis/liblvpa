@@ -1,5 +1,5 @@
 #include "LVPAInternal.h"
-#include "tools.h"
+#include "LVPATools.h"
 
 #include "ProgressBar.h"
 #include "LVPAFile.h"
