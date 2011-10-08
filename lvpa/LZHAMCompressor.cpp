@@ -89,6 +89,9 @@ void LZHAMCompressor::Compress(uint8 level, ProgressCallback pcb /* = NULL */)
 
     _iscompressed = true;
     _real_size = (uint64)oldsize;
+
+    if(pcb)
+        pcb(NULL, oldsize, newsize);
 }
 
 void LZHAMCompressor::Decompress(void)
