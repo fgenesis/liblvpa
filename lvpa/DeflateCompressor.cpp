@@ -119,7 +119,7 @@ void DeflateCompressor::decompress(void *dst, uint32 *origsize, const void *src,
 
 void DeflateCompressor::Compress(uint8 level, ProgressCallback pcb /* = NULL */)
 {
-    if(!level || _iscompressed || (!size()))
+    if(!_forceCompress && (!level || _iscompressed || (!size())))
         return;
 
     char *buf;
