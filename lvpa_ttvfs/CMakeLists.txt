@@ -10,7 +10,7 @@ endif()
 
 # required for the test program
 if(LVPA_BUILD_TESTPROG AND NOT TTVFS_SRC_DIR)
-    set(TTVFS_SRC_DIR "" CACHE FILEPATH "ttvfs source directory" FORCE)
+    set(TTVFS_SRC_DIR "" CACHE PATH "ttvfs source directory" FORCE)
 endif()
 
 include_directories(${TTVFS_INCLUDE_DIRS})

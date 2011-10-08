@@ -406,21 +406,21 @@ bool LVPAFile::Free(const char *fn)
 bool LVPAFile::Free(uint32 id)
 {
     LVPAFileHeader& hdrRef = _headers[id];
-    bool ret = false;
+    bool freed = false;
     if(hdrRef.data.ptr && !hdrRef.otherMem)
     {
         delete [] hdrRef.data.ptr;
-        ret = true;
+        freed = true;
     }
 
-    if(!(hdrRef.flags & LVPAFLAG_SOLIDBLOCK))
+    if(freed || !(hdrRef.flags & LVPAFLAG_SOLIDBLOCK))
     {
         hdrRef.data.ptr = NULL; // can be retrieved easily if needed later
         hdrRef.data.size = 0;
     }
 
     hdrRef.sparePtr = NULL; // now its definitely not used anymore.
-    return ret;
+    return freed;
 }
 
 uint32 LVPAFile::FreeUnused(void)
