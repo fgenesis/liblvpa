@@ -15,6 +15,8 @@ LVPAStreamCipher.cpp
 LVPAStreamCipher.h
 LZFCompressor.cpp
 LZFCompressor.h
+LZHAMCompressor.cpp
+LZHAMCompressor.h
 LZMACompressor.cpp
 LZMACompressor.h
 LZOCompressor.cpp

@@ -6,6 +6,7 @@ option(LVPA_ENABLE_ZLIB "Add zlib/deflate support" TRUE)
 option(LVPA_ENABLE_LZMA "Add LZMA support" TRUE)
 option(LVPA_ENABLE_LZO "Add LZO support" FALSE)
 option(LVPA_ENABLE_LZF "Add LZF support" TRUE)
+option(LVPA_ENABLE_LZHAM "Add LZHAM support" TRUE)
 
 option(LVPA_BUILD_TTVFS_BINDINGS "Build bindings for ttvfs?" FALSE)
 option(LVPA_BUILD_LVPAK "Build lvpak commandline utility?" TRUE)
@@ -15,6 +16,7 @@ option(LVPA_USE_INTERNAL_ZLIB "Use included zlib" TRUE)
 option(LVPA_USE_INTERNAL_LZMA "Use included LZMA libary" TRUE)
 option(LVPA_USE_INTERNAL_LZO "Use included LZO library" TRUE)
 option(LVPA_USE_INTERNAL_LZF "Use included LZF library" TRUE)
+option(LVPA_USE_INTERNAL_LZHAM "Use included LZHAM library" TRUE)
 
 
 # compiler specific things
@@ -82,6 +84,14 @@ if(LVPA_ENABLE_LZF)
         add_subdirectory(lzf)
     endif()
     list(APPEND LVPA_DEP_LIBS lzf)
+endif()
+
+if(LVPA_ENABLE_LZHAM)
+    add_definitions("-DLVPA_SUPPORT_LZHAM")
+    if(LVPA_USE_INTERNAL_LZHAM)
+        add_subdirectory(lzham)
+    endif()
+    list(APPEND LVPA_DEP_LIBS lzham)
 endif()
 
 

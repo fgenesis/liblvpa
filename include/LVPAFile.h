@@ -62,6 +62,7 @@ enum LVPAAlgorithms
     LVPAPACK_LZO1X,
     LVPAPACK_DEFLATE,
     LVPAPACK_LZF,
+    LVPAPACK_LZHAM,
 
     LVPAPACK_MAX_SUPPORTED, // must be after last algo
 

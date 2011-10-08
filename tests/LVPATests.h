@@ -9,6 +9,7 @@ int TestDeflate();
 int TestZlib();
 int TestGzip();
 int TestLZF();
+int TestLZHAM();
 int TestLVPAUncompressed();
 int TestLVPAUncompressedSolid();
 int TestLVPA_LZMA();

@@ -32,6 +32,9 @@ uint32 GetConsoleWidth(void);
 bool WildcardMatch(const char *str, const char *pattern);
 uint32 GetConsoleWidth(void);
 
+// for lzham
+uint32 ilog2(uint32);
+
 
 template <class T> void StrSplit(const std::string &src, const std::string &sep, T& container, bool keepEmpty = false)
 {

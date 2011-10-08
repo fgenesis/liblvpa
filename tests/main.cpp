@@ -23,6 +23,9 @@ int main(int argc, char *argv[])
 #ifdef LVPA_SUPPORT_LZF
     DO_TESTRUN(TestLZF());
 #endif
+#ifdef LVPA_SUPPORT_LZHAM
+    DO_TESTRUN(TestLZHAM());
+#endif
 
     DO_TESTRUN(TestRC4());
     DO_TESTRUN(TestHPRC4Like());

@@ -2,12 +2,25 @@
 #include <cstdio>
 
 #include "LVPACommon.h"
-#include "SHA256Hash.h"
-#include "LZMACompressor.h"
-#include "LZOCompressor.h"
-#include "DeflateCompressor.h"
-#include "LZFCompressor.h"
 #include "LVPAFile.h"
+#include "SHA256Hash.h"
+
+#ifdef LVPA_SUPPORT_LZMA
+#  include "LZMACompressor.h"
+#endif
+#ifdef LVPA_SUPPORT_LZO
+#  include "LZOCompressor.h"
+#endif
+#ifdef LVPA_SUPPORT_ZLIB
+#  include "DeflateCompressor.h"
+#endif
+#ifdef LVPA_SUPPORT_LZF
+#  include "LZFCompressor.h"
+#endif
+#ifdef LVPA_SUPPORT_LZHAM
+#  include "LZHAMCompressor.h"
+#endif
+
 
 #ifdef LVPA_NAMESPACE
   using namespace LVPA_NAMESPACE;
@@ -51,14 +64,21 @@ const uint32 i2[] =
     0x100, 0x200, 0x400, 0x800
 };
 
-#define DO_PACK_UNPACK(mem, compr) \
+#define DO_PACK_UNPACK2(mem, compr, lv, prn) \
 { \
     uint32 _size = sizeof(mem); \
     compr _c; _c.append((const char*)&mem[0], _size); \
-    _c.Compress(); \
-    printf("C %s [%s]: %u -> %u\n", #mem, #compr, _c.RealSize(), _c.size()); \
+    _c.Compress(lv); \
+    if(prn) printf("C %s [%s]: %u -> %u\n", #mem, #compr, _c.RealSize(), _c.size()); \
     _c.Decompress(); \
     if(memcmp((const char*)&mem[0], _c.contents(), _c.size())) return 1; \
+}
+
+#define DO_PACK_UNPACK(mem, compr) \
+{ \
+    for(uint8 __i_ = 0; __i_ <= 8; ++__i_) \
+        DO_PACK_UNPACK2(mem, compr, __i_, false); \
+    DO_PACK_UNPACK2(mem, compr, 9, true); \
 }
 
 #define DO_COMPRESS_RUN(compr) \
@@ -188,6 +208,14 @@ int TestGzip()
 int TestLZF()
 {
     DO_COMPRESS_RUN(LZFCompressor);
+    return 0;
+}
+#endif
+
+#ifdef LVPA_SUPPORT_LZHAM
+int TestLZHAM()
+{
+    DO_COMPRESS_RUN(LZHAMCompressor);
     return 0;
 }
 #endif

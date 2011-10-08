@@ -14,7 +14,7 @@ benchrun() {
     exe="$1"
     shift
     for x in 1 2 3 4 5 9; do
-        for y in lzma lzo zip; do
+        for y in lzma lzo zip lzham; do
             dozip "$exe" "$y$x" "$@"
         done
     done
@@ -33,5 +33,5 @@ shift
 
 mkdir -p benchmark_out
 
-benchrun "$lvpak" zlib lvpa lzo lzma "$@"
+benchrun "$lvpak" "$@"
 

@@ -24,6 +24,9 @@
 #ifdef LVPA_SUPPORT_LZF
 #  include "LZFCompressor.h"
 #endif
+#ifdef LVPA_SUPPORT_LZHAM
+#  include "LZHAMCompressor.h"
+#endif
 
 LVPA_NAMESPACE_START
 
@@ -67,6 +70,10 @@ static ICompressor *allocCompressor(uint8 algo)
 #ifdef LVPA_SUPPORT_LZMA
         case LVPAPACK_LZMA:
             return new LZMACompressor;
+#endif
+#ifdef LVPA_SUPPORT_LZHAM
+        case LVPAPACK_LZHAM:
+            return new LZHAMCompressor;
 #endif
         case LVPAPACK_NONE:
             return new ICompressor; // does nothing
@@ -1424,6 +1431,10 @@ bool IsSupported(LVPAAlgorithms algo)
 #endif
 #ifdef LVPA_SUPPORT_LZMA
     case LVPAPACK_LZMA:
+        return true;
+#endif
+#ifdef LVPA_SUPPORT_LZHAM
+    case LVPAPACK_LZHAM:
         return true;
 #endif
     case LVPAPACK_INHERIT:

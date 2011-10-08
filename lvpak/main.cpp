@@ -550,6 +550,9 @@ static void dep_authors(void)
 #ifdef LVPA_SUPPORT_LZF
          " - LZF by Marc Lehmann"
 #endif
+#ifdef LVPA_SUPPORT_LZHAM
+         " - LZHAM by Richard Geldreich"
+#endif
          " **");
 }
 
@@ -584,6 +587,9 @@ static void usage(void)
 #endif
 #ifdef LVPA_SUPPORT_LZF
            ", lzf"
+#endif
+#ifdef LVPA_SUPPORT_LZHAM
+           ", lzham"
 #endif
            ", or i (inherit)\n"
            "     # - a number in 0..9 or i (inherit)\n"
@@ -704,6 +710,20 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
                         *algo = LVPAPACK_NONE;
                         *level = LVPAPACK_NONE;
                         return true;
+                    }
+
+                    // ...
+
+                    if(l >= 5)
+                    {
+#ifdef LVPA_SUPPORT_LZHAM
+                        if(!strnicmp(str, "lzham", 5))
+                        {
+                            *algo = LVPAPACK_LZHAM;
+                            *level = LVPAPACK_INHERIT;
+                            return parseCompressString(str + 5, NULL, level);
+                        }
+#endif
                     }
                 }
             }
@@ -1056,11 +1076,12 @@ int main(int argc, char *argv[])
                 const char *algoStr = "UNK";
                 switch(h.algo)
                 {
-                    case LVPAPACK_NONE:    algoStr = "None"; break;
-                    case LVPAPACK_LZMA:    algoStr = "Lzma"; break;
-                    case LVPAPACK_LZO1X:   algoStr = "Lzo "; break;
-                    case LVPAPACK_DEFLATE: algoStr = "Zip "; break;
-                    case LVPAPACK_LZF:     algoStr = "Lzf "; break;
+                    case LVPAPACK_NONE:    algoStr = "None "; break;
+                    case LVPAPACK_LZMA:    algoStr = "Lzma "; break;
+                    case LVPAPACK_LZO1X:   algoStr = "Lzo  "; break;
+                    case LVPAPACK_DEFLATE: algoStr = "Zip  "; break;
+                    case LVPAPACK_LZF:     algoStr = "Lzf  "; break;
+                    case LVPAPACK_LZHAM:   algoStr = "Lzham"; break;
                 }
                 printf("[%c%c%c%c,%s%c%s%s] '%s' (%u KB, %.2f%%)%s\n",
                     h.flags & LVPAFLAG_PACKED ? 'P' : '-',

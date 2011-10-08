@@ -10,6 +10,7 @@
 //#define LVPA_SUPPORT_LZMA
 //#define LVPA_SUPPORT_LZO
 //#define LVPA_SUPPORT_LZF
+//#define LVPA_SUPPORT_LZHAM
 
 
 
