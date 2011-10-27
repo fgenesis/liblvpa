@@ -1,5 +1,6 @@
 
 set(lzham_SRC
+lzham.h
 lzham_comp.h
 lzham_lzbase.cpp
 lzham_lzbase.h
