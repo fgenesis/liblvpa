@@ -26,8 +26,7 @@ namespace lzham
 
       template<typename T> inline T clamp(T value, T low, T high) { return (value < low) ? low : ((value > high) ? high : value); }
 
-      inline bool is_power_of_2(uint32 x) { return x && ((x & (x - 1U)) == 0U); }
-      inline bool is_power_of_2(uint64 x) { return x && ((x & (x - 1U)) == 0U); }
+      template<typename T> inline bool is_power_of_2(T x) { return x && ((x & (x - 1U)) == 0U); }
 
       template<typename T> inline T align_up_pointer(T p, uint alignment)
       {

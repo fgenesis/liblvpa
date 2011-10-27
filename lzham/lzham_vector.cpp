@@ -20,7 +20,7 @@ namespace lzham
       if (m_capacity >= min_new_capacity)
          return true;
 
-      size_t new_capacity = min_new_capacity;
+      uint new_capacity = min_new_capacity;
       if ((grow_hint) && (!math::is_power_of_2(new_capacity)))
          new_capacity = math::next_pow2(new_capacity);
 
