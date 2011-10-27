@@ -68,6 +68,8 @@ void VFSHelperLVPA::LoadBaseContainer(LVPAFile *f, bool deleteLater)
             break;
         }
     }
+
+    preRoot.push_back(lvpaRoot);
 }
 
 bool VFSHelperLVPA::AddContainer(LVPAFile *f, const char *path, bool deleteLater,
@@ -95,6 +97,15 @@ bool VFSHelperLVPA::AddContainer(LVPAFile *f, const char *path, bool deleteLater
         delete f; // loading unsucessful, delete now
 
     return !!--(vfs->ref); // 0 if if deleted
+}
+
+void VFSHelperLVPA::ClearGarbage()
+{
+    super::ClearGarbage();
+    if(lvpabase)
+        lvpabase->FreeUnused();
+    for(std::set<LVPAFile*>::iterator it = lvpalist.begin(); it != lvpalist.end(); ++it)
+        (*it)->FreeUnused();
 }
 
 

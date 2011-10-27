@@ -22,7 +22,7 @@ VFSDirLVPA.h
 VFSFileLVPA.cpp
 VFSFileLVPA.h
 VFSHelperLVPA.cpp
-${LVPA_INCLUDE_DIRS}/VFSHelperLVPA.h
+VFSHelperLVPA.h
 VFSLoaderLVPA.cpp
 VFSLoaderLVPA.h
 )

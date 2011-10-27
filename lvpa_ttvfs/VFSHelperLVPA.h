@@ -26,6 +26,8 @@ public:
     void LoadBaseContainer(LVPA_NAMESPACE_IMPL LVPAFile *f, bool deleteLater);
     bool AddContainer(LVPA_NAMESPACE_IMPL LVPAFile *f, const char *subdir, bool deleteLater, bool asSubdir = true, bool overwrite = true);
 
+    virtual void ClearGarbage();
+
 protected:
 
     virtual void _cleanup(void);
