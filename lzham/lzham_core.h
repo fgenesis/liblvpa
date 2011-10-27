@@ -50,8 +50,10 @@
 
    #if defined(__MINGW32__) || defined(__MINGW64__)
       #define LZHAM_USE_GCC_ATOMIC_BUILTINS 1
+      #define LZHAM_FORCE_INLINE __attribute__((always_inline))
    #else
       #define LZHAM_USE_WIN32_ATOMIC_FUNCTIONS 1
+      #define LZHAM_FORCE_INLINE __forceinline
    #endif
 
    #define LZHAM_PLATFORM_PC 1
@@ -70,7 +72,6 @@
 
    #define LZHAM_USE_UNALIGNED_INT_LOADS 1
    #define LZHAM_RESTRICT __restrict
-   #define LZHAM_FORCE_INLINE __forceinline
 
    #if defined(_MSC_VER) || defined(__MINGW32__) || defined(__MINGW64__)
       #define LZHAM_USE_MSVC_INTRINSICS 1

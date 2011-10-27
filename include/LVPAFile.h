@@ -5,6 +5,7 @@
 
 #include <map>
 #include <vector>
+#include <string>
 
 LVPA_NAMESPACE_START
 
