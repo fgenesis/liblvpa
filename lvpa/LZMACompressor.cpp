@@ -77,15 +77,11 @@ void LZMACompressor::Decompress(void)
         return;
 
     uint32 origsize = _real_size;
-    int8 result = SZ_OK;
+    SRes result = SZ_OK;
     uint8 *target = new uint8[_real_size];
     wpos(0);
     rpos(0);
     SizeT srcLen = this->size() - LZMA_PROPS_SIZE;
-
-    SizeT propsSize = LZMA_PROPS_SIZE;
-    Byte propsEnc[LZMA_PROPS_SIZE];
-    read(&propsEnc[0], LZMA_PROPS_SIZE);
 
     ISzAlloc alloc;
     alloc.Alloc = myLzmaAlloc;
@@ -94,14 +90,16 @@ void LZMACompressor::Decompress(void)
     ELzmaStatus status;
     Byte *dataPtr = (Byte*)this->contents() + LZMA_PROPS_SIZE; // first 5 bytes are encoded props
 
-    result = LzmaDecode(target, (SizeT*)&_real_size, dataPtr, &srcLen, &propsEnc[0], propsSize, LZMA_FINISH_END, &status, &alloc);
+    SizeT rs = _real_size;
+
+    result = LzmaDecode(target, &rs, dataPtr, &srcLen, (const Byte*)this->contents(), LZMA_PROPS_SIZE, LZMA_FINISH_END, &status, &alloc);
     if( result != SZ_OK || origsize != _real_size)
     {
         //DEBUG(logerror("LZMACompressor: Decompress error! result=%d cursize=%u origsize=%u realsize=%u\n",result,size(),origsize,_real_size));
         delete [] target;
         return;
     }
-    ASSERT(propsSize == LZMA_PROPS_SIZE); // this should not be changed by the library
+    _real_size = (uint32)rs;
     resize(origsize);
     wpos(0);
     rpos(0);

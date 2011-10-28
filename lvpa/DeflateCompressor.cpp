@@ -93,8 +93,9 @@ void DeflateCompressor::decompress(void *dst, uint32 *origsize, const void *src,
     stream.next_in = (Bytef*)src;
     stream.avail_in = (uInt)size;
     stream.next_out = (Bytef*)dst;
-    stream.zalloc = (alloc_func)0;
-    stream.zfree = (free_func)0;
+    stream.zalloc = Z_NULL;
+    stream.zfree = Z_NULL;
+    stream.opaque = Z_NULL;
 
     err = inflateInit2(&stream, wbits);
     if (err != Z_OK)
@@ -109,7 +110,7 @@ void DeflateCompressor::decompress(void *dst, uint32 *origsize, const void *src,
         inflateEnd(&stream);
         *origsize = 0;
     }
-    *origsize = stream.total_out;
+    *origsize = (uint32)stream.total_out;
 
     err = inflateEnd(&stream);
     if(err != Z_OK)

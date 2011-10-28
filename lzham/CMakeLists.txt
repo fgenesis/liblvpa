@@ -54,3 +54,8 @@ if(MSVC)
 endif()
 
 add_library(lzham ${lzham_SRC})
+
+if(NOT WIN32)
+        target_link_libraries(lzham pthread)
+endif()
+
