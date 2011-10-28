@@ -96,6 +96,8 @@ void DeflateCompressor::decompress(void *dst, uint32 *origsize, const void *src,
     stream.zalloc = Z_NULL;
     stream.zfree = Z_NULL;
     stream.opaque = Z_NULL;
+    stream.avail_out = *origsize;
+    stream.total_out = 0;
 
     err = inflateInit2(&stream, wbits);
     if (err != Z_OK)
