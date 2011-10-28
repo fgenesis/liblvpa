@@ -109,6 +109,7 @@ void DeflateCompressor::decompress(void *dst, uint32 *origsize, const void *src,
     {
         inflateEnd(&stream);
         *origsize = 0;
+        return;
     }
     *origsize = (uint32)stream.total_out;
 
