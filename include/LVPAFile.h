@@ -115,7 +115,9 @@ struct LVPAFileHeader
           flags(LVPAFLAG_NONE), algo(LVPAPACK_NONE), level(LVPACOMP_NONE),
           id(-1), offset(-1), encryption(LVPAENCR_NONE), good(true), checkedCRC(false), checkedCRCPacked(false),
           otherMem(false), sparePtr(NULL)
-    {}
+    {
+        memset(&hash[0], 0, LVPAHash_Size);
+    }
 
     // these are stored in the file
     std::string filename; // empty/unused if LVPAFLAG_SCRAMBLED is set
@@ -186,7 +188,7 @@ public:
     // so that it can be processed elsewhere.
     // Returns true if the memory is no longer referenced anywhere inside the LVPAFile, and can be mangled freely.
     // If it returns false, the memory needs to be copied by hand.
-    bool Drop(const char *fn); 
+    bool Drop(const char *fn);
     bool Drop(uint32 id);
 
     uint32 SetSolidBlock(const char *name, uint8 compression = LVPACOMP_INHERIT, uint8 algo = LVPAPACK_INHERIT); // return file id of block
@@ -218,7 +220,7 @@ private:
 
     std::vector<uint8> _masterKey; // used as global encryption key for each file
     uint8 _masterSalt[LVPAHash_Size]; // derived from master key, used for filename salting
-    
+
     // loading functions, call chain/data flow is in this order:
     // [HDD] -> _LoadFile() -> _DecryptFile() -> _UnpackFile() -> _PrepareFile() -> Get() -> [memblock]
     bool _LoadFile(memblock& target, LVPAFileHeader& h); // load from disk
@@ -234,7 +236,7 @@ private:
     void _CalcSaltedFilenameHash(uint8 *dst, const std::string& fn);
     // encrypt or decrypt block of data; it is assumed that hdr.filename already holds the correct file name in case the file is scrambled
     // writeMode should be true when the block is supposed to be encrypted/scrambled, false otherwise
-    bool _CryptBlock(uint8 *buf, LVPAFileHeader& hdr, bool writeMode); 
+    bool _CryptBlock(uint8 *buf, LVPAFileHeader& hdr, bool writeMode);
     // these return true and set *id to the internal file number (= _headers[] array position) if found
     bool _FindHeaderByName(const char *fn, uint32 *id);
     bool _FindHeaderByHash(uint8 *hash, uint32 *id);

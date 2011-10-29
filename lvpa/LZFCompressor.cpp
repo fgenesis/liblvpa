@@ -12,7 +12,7 @@ void LZFCompressor::Compress(uint8 /*level*/, ProgressCallback pcb /* = NULL */)
 {
     if(_iscompressed || (!size()))
         return;
-    
+
     unsigned int oldsize = (unsigned int)size();
     unsigned int newsize = oldsize - 1;
 
@@ -48,7 +48,7 @@ void LZFCompressor::Decompress(void)
     unsigned int currentSize = size();
     unsigned int targetSize = _real_size;
     uint8 *target = new uint8[targetSize];
-    
+
     targetSize = lzf_decompress(contents(), currentSize, target, targetSize);
     if(!targetSize)
     {

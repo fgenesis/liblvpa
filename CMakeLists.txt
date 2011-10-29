@@ -94,18 +94,17 @@ if(LVPA_ENABLE_LZHAM)
     list(APPEND LVPA_DEP_LIBS lzham)
 endif()
 
+if(LVPA_BUILD_TTVFS_BINDINGS)
+    add_definitions("-DLVPA_SUPPORT_TTVFS")
+    add_subdirectory(lvpa_ttvfs)
+endif()
+
 
 add_subdirectory(include)
 add_subdirectory(lvpa)
 
-
 if(LVPA_BUILD_LVPAK)
     add_subdirectory(lvpak)
-endif()
-
-if(LVPA_BUILD_TTVFS_BINDINGS)
-    add_definitions("-DLVPA_SUPPORT_TTVFS")
-    add_subdirectory(lvpa_ttvfs)
 endif()
 
 if(LVPA_BUILD_TESTPROG)

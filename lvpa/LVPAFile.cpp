@@ -129,7 +129,7 @@ ByteBuffer &operator >> (ByteBuffer& bb, LVPAFileHeader& h)
         bb.read(h.hash, LVPAHash_Size);
     else
         bb >> h.filename;
-    
+
     if(h.flags & LVPAFLAG_PACKED)
     {
         bb >> h.packedSize;
@@ -312,7 +312,7 @@ void LVPAFile::Add(const char *fn, memblock mb, const char *solidBlockName /* = 
                    uint8 algo /* = LVPAPACK_INHERIT */, uint8 level /* = LVPACOMP_INHERIT */,
                    uint8 encrypt /* = LVPAENCR_INHERIT */, bool scramble /* = false */)
 {
-    uint32 id;
+    uint32 id = -1;
     if(_FindHeaderByName(fn, &id))
     {
         // already exists, overwrite old with new info
@@ -333,6 +333,7 @@ void LVPAFile::Add(const char *fn, memblock mb, const char *solidBlockName /* = 
         _indexes[fn] = id;
         _headers.push_back(hdr);
     }
+    DEBUG(ASSERT(id != uint32(-1)));
 
     // Always reserve a little more space, it would be bad if the vector had to reallocate
     // while we are holding references to its elements.
@@ -592,7 +593,7 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
     {
         hdrCiph.Apply((uint8*)hdrBuf->contents(), hdrBuf->size());
     }
-    
+
     // decompress the headers if packed
     if(masterHdr.flags & LVPAHDR_PACKED)
     {
@@ -757,7 +758,7 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
 
             h.blockId = 0;
             DEBUG(h.blockId = -1); // to see if an error occurs - this value should never be used with these flags
-            
+
             if(h.level == LVPACOMP_INHERIT)
                 h.level = compression;
             if(h.algo == LVPAPACK_INHERIT)
@@ -774,13 +775,13 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
                 h.flags &= ~LVPAFLAG_ENCRYPTED;
             else
                 h.flags |= LVPAFLAG_ENCRYPTED;
-        }   
+        }
     }
 
     // one buf for each file - not all have to be used.
     // it WILL be used if a file has LVPAFLAG_PACKED set, which means the data went into a compressor
     // they might not be packed if the data are incompressible, in this case, the original data in memory are used
-    AutoPtrVector<ICompressor> fileBufs(headersCopy.size()); 
+    AutoPtrVector<ICompressor> fileBufs(headersCopy.size());
 
     // first iteration - find out required sizes for the solid block buffers, and renumber solid block ids for the files stored inside
     for(uint32 i = 0; i < headersCopy.size(); ++i)
@@ -874,7 +875,7 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
             // calc unpacked crc before compressing
             if(block->size())
                 h.crcReal = CRC32::Calc(block->contents(), block->size());
-            
+
             if(h.level != LVPACOMP_NONE)
                 block->Compress(h.level, drawCompressProgressBar);
 
@@ -1198,11 +1199,11 @@ memblock LVPAFile::_UnpackFile(LVPAFileHeader& h)
         buf->Decompress();
         target.size = buf->size();
         target.ptr = new uint8[target.size + LVPA_EXTRA_BUFSIZE];
-        
+
         if(target.size)
             buf->read(target.ptr, target.size);
 
-        
+
 
         delete buf;
     }
@@ -1274,7 +1275,7 @@ void LVPAFile::_CalcOffsets(uint32 startOffset)
 {
     std::vector<uint32> solidOffsets(_headers.size());
     std::fill(solidOffsets.begin(), solidOffsets.end(), 0);
-    
+
     for(uint32 i = 0; i < _headers.size(); ++i)
     {
         LVPAFileHeader& h = _headers[i];
@@ -1292,7 +1293,7 @@ void LVPAFile::_CalcOffsets(uint32 startOffset)
             startOffset += h.packedSize;
             DEBUG(logdebug("Abs offset %u for '%s'", h.offset, h.filename.c_str()));
         }
-        
+
     }
 }
 
@@ -1365,7 +1366,7 @@ bool LVPAFile::_CryptBlock(uint8 *buf, LVPAFileHeader& hdr, bool writeMode)
             sha.Update(&mem[0], LVPAHash_Size);
             sha.Finalize();
         }
-        
+
         ciph.Init(&mem[0], LVPAHash_Size);
     }
     else if(hdr.flags & LVPAFLAG_ENCRYPTED)
@@ -1420,7 +1421,7 @@ bool LVPAFile::_FindHeaderByHash(uint8 *hash, uint32 *id)
 {
     for(uint32 i = 0; i < _headers.size(); ++i)
     {
-        LVPAFileHeader &h = _headers[i];
+        const LVPAFileHeader &h = _headers[i];
         if(h.flags & LVPAFLAG_SCRAMBLED)
         {
             if(!memcmp(hash, h.hash, LVPAHash_Size))

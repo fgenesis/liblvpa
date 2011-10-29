@@ -34,11 +34,14 @@ void LZOCompressor::Compress(uint8 level, ProgressCallback pcb /* = NULL */)
         int res = lzo_init();
         ASSERT(res == LZO_E_OK);
     }
-    
+
     lzo_uint oldsize = size();
     lzo_uint newsize = LZO_OUT_LEN(oldsize);
-    
+
     uint8 *wrkmem = new uint8[LZO1X_999_MEM_COMPRESS];
+
+    // to make valgrind happy
+    memset(wrkmem, 0, LZO1X_999_MEM_COMPRESS);
 
     uint8 *buf = new uint8[newsize];
 
@@ -94,7 +97,7 @@ void LZOCompressor::Decompress(void)
     lzo_uint currentSize = size();
     lzo_uint targetSize = _real_size;
     uint8 *target = new uint8[targetSize];
-    
+
     int r = lzo1x_decompress(contents(), currentSize, target, &targetSize, NULL);
     if (!(r == LZO_E_OK && (uint64)targetSize == _real_size))
     {

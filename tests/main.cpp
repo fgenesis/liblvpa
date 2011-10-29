@@ -9,6 +9,7 @@
 int main(int argc, char *argv[])
 {
     DO_TESTRUN(LVPATestsInit());
+
 #ifdef LVPA_SUPPORT_LZO
     DO_TESTRUN(TestLZO());
 #endif
@@ -47,7 +48,7 @@ int main(int argc, char *argv[])
     DO_TESTRUN(TestLVPA_LZMA_EncrScram());
     DO_TESTRUN(TestLVPA_Everything());
 
-#ifdef  LVPA_SUPPORT_TTVFS
+#ifdef LVPA_SUPPORT_TTVFS
     DO_TESTRUN(TestLVPA_VFS_ScrambledLoader());
     DO_TESTRUN(TestLVPA_VFS_ScrambledLoaderEncrypted());
 #endif

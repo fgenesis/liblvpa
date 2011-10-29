@@ -22,10 +22,9 @@ VFSHelperLVPA::VFSHelperLVPA()
 
 VFSHelperLVPA::~VFSHelperLVPA()
 {
-    if(lvpaRoot)
-        lvpaRoot->ref--;
     if(lvpabase)
         delete lvpabase;
+    //lvpaRoot is deleted when preRoot is cleaned up
 }
 
 void VFSHelperLVPA::_cleanup(void)
