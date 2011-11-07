@@ -54,7 +54,7 @@ backends, lvpak (the command line packer/unpacker),
 and a test binary to verify that everything works.
 In this configuration, the zlib license is applicable (see below).
 You can additionally:
-- enable LZO as additional compression backend
+- enable LZO and/or LZHAM as additional compression backend
 - build LVPA <-> ttvfs bindings 
 - configure everything to link statically (if building on windows with MSVC)
 
@@ -69,6 +69,7 @@ LZF  - BSD license (2-clause) or GPL v2+
 LZMA - public domain
 zlib - zlib license
 LZO  - GPL v2+
+LZHAM - MIT License
 Mersenne Twister random number generator - BSD license (3-clause)
 
 If no support for LZO is included, this library is licensed under the

@@ -6,7 +6,7 @@ option(LVPA_ENABLE_ZLIB "Add zlib/deflate support" TRUE)
 option(LVPA_ENABLE_LZMA "Add LZMA support" TRUE)
 option(LVPA_ENABLE_LZO "Add LZO support" FALSE)
 option(LVPA_ENABLE_LZF "Add LZF support" TRUE)
-option(LVPA_ENABLE_LZHAM "Add LZHAM support" TRUE)
+option(LVPA_ENABLE_LZHAM "Add LZHAM support" FALSE)
 
 option(LVPA_BUILD_TTVFS_BINDINGS "Build bindings for ttvfs?" FALSE)
 option(LVPA_BUILD_LVPAK "Build lvpak commandline utility?" TRUE)
