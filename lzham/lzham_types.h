@@ -2,6 +2,27 @@
 // See Copyright Notice and license at the end of include/lzham.h
 #pragma once
 
+#undef INT8_MIN
+#undef INT8_MAX
+#undef UINT8_MIN
+#undef UINT8_MAX
+
+#undef INT16_MIN
+#undef INT16_MAX
+#undef UINT16_MIN
+#undef UINT16_MAX
+
+#undef INT32_MIN
+#undef INT32_MAX
+#undef UINT32_MIN
+#undef UINT32_MAX
+
+#undef INT64_MIN
+#undef INT64_MAX
+#undef UINT64_MIN
+#undef UINT64_MAX
+
+
 namespace lzham
 {
    typedef unsigned char      uint8;

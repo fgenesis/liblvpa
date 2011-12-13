@@ -6,6 +6,10 @@
    #pragma warning (disable: 4127) // conditional expression is constant
 #endif
 
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
+   #define LZHAM_ANSI_CPLUSPLUS 1
+#endif
+
 #if defined(_XBOX) && !defined(LZHAM_ANSI_CPLUSPLUS)
    // X360
    #include <xtl.h>
@@ -137,7 +141,6 @@ const bool c_lzham_big_endian_platform = !c_lzham_little_endian_platform;
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <malloc.h>
 #include <stdarg.h>
 #include <memory.h>
 #include <limits.h>
