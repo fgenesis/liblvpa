@@ -30,7 +30,7 @@ public:
     virtual vfspos size(vfspos newsize);
     virtual const void *getBuf(void);
     virtual void dropBuf(bool del);
-    virtual const char *getSource(void) const { return "LVPA"; }
+    virtual const char *getType(void) const { return "LVPA"; }
 
     inline LVPA_NAMESPACE_IMPL LVPAFile *getLVPA(void) const { return _lvpa; }
 

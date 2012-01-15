@@ -15,7 +15,7 @@ VFS_NAMESPACE_START
 VFSDirLVPA::VFSDirLVPA(LVPAFile *f, bool asSubdir)
 {
     _lvpa = f;
-    _fullname = asSubdir ? f->GetMyName() : StripLastPath(f->GetMyName());
+    _fullname = FixPath(asSubdir ? f->GetMyName() : StripLastPath(f->GetMyName()));
     _name = PathToFileName(_fullname.c_str());
 }
 
