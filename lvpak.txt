@@ -145,16 +145,24 @@ Then, create a master listfile, which looks like this:
 (-Hlzf turns on header compression with LZF, -E turns on header encryption,
 -Kb supplies an encryption key in hex, which is converted to binary.)
 
+To pack everything, simply use:
+
+   $ lvpak c archive.lvpa -f master.listfile
+
 After packing, use lvpak to list all files in your archive (mode 'l') and be sure they are all organized
-as they should be, and that all files that should be encrypted/scrambled have the right attributes:
+as they should be, and that all files that should be encrypted/scrambled have the right attributes;
+and test mode to verify that the archive is completely readable and error-free.
 
    $ lvpak l archive.lvpa -K[your-key-here]
+   $ lvpak t archive.lvpa -K[your-key-here]
 
 Hint: If a file is scrambled, the name is gone.
 It is still possible to extract specific files by giving explicit file names to lvpak, like this:
 
-   $ lvpak x archive.lvpa -K[your-key-here] music/music.ogg
-   
+   $ lvpak x archive.lvpa -p unpackdir -K[your-key-here] music/music.ogg
+
+(You can omit -p here but in that case you risk overwriting the original file!)
+
 
 ===============================
 A few notes about data safety:
