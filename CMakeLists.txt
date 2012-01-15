@@ -22,24 +22,62 @@ option(LVPA_USE_INTERNAL_LZHAM "Use included LZHAM library" TRUE)
 # compiler specific things
 if(MSVC)
     # MSVC builds require installed runtime library by default
-    option(LVPA_STATIC_LIB "Link as static library without runtime dependencies (Note: To get rid of this setting with MSVC, the cmake cache must be cleared)" FALSE)
-    add_definitions("/GR-") # run-time type info (RTTI) not required
+    option(LVPA_STATIC_LIB "Link as static library without runtime dependencies." FALSE)
+    
+    option(LVPA_MSVC_OPTIMIZE "Override the MSVC compile flags to produce faster/smaller code than the CMake defaults would. (Note: To get rid of this setting, the cmake cache must be cleared)" FALSE)
     
     if(LVPA_STATIC_LIB)
-        # this is ugly - hackfix compiler flags
-        foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-            if(${flag_var} MATCHES "/MD")
-                string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-            endif(${flag_var} MATCHES "/MD")
-            if(${flag_var} MATCHES "/MDd")
-                string(REGEX REPLACE "/MDd" "/MTd" ${flag_var} "${${flag_var}}")
-            endif(${flag_var} MATCHES "/MDd")
-        endforeach()
+        set(TEMP_RTLIB_OLD   "/MD")
+        set(TEMP_RTLIB       "/MT")
         
         # hackfix linker flags - no idea why, but MSVC will produce linker errors otherwise
         set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /NODEFAULTLIB")
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:msvcrt.lib,msvcrtd.lib") # not sure if this is correct
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NODEFAULTLIB:msvcrt.lib,msvcrtd.lib") # not sure if this is correct, but it works
         set(CMAKE_EXE_LINKER_FLAGS    "${CMAKE_EXE_LINKER_FLAGS} /NODEFAULTLIB:msvcrt.lib,msvcrtd.lib")
+        
+        set(_LVPA_SET_STATIC TRUE CACHE INTERNAL "")
+    else()
+        set(TEMP_RTLIB_OLD "/MT")
+        set(TEMP_RTLIB     "/MD")
+    endif()
+    
+    if(_LVPA_SET_STATIC)
+            # this is ugly - hackfix compiler flags
+        foreach(flag_var CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO
+                         CMAKE_C_FLAGS   CMAKE_C_FLAGS_DEBUG   CMAKE_C_FLAGS_RELEASE   CMAKE_C_FLAGS_MINSIZEREL   CMAKE_C_FLAGS_RELWITHDEBINFO )
+            if(${flag_var} MATCHES "${TEMP_RTLIB_OLD}")
+                string(REGEX REPLACE "${TEMP_RTLIB_OLD}" "${TEMP_RTLIB}" ${flag_var} "${${flag_var}}")
+            endif()
+            
+            set(${flag_var} "${${flag_var}}" CACHE STRING "" FORCE) # force GUI update
+        endforeach()
+    endif()
+    
+    if(LVPA_MSVC_OPTIMIZE)
+        # no exception handling required
+        string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        
+        # run-time type info (RTTI) not required
+        string(REPLACE "/GR" "/GR-" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        
+        # various HACKS
+        string(REPLACE "/GR--" "/GR-" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        string(REPLACE " /EHsc" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
+        string(REPLACE " /EHsc" "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
+        
+        # compile flags
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /EHsc" CACHE STRING "C++ flags for RelWithDebInfo" FORCE)
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /EHsc" CACHE STRING "C++ flags for Debug" FORCE)
+        
+        # force GUI update
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "Optimized CXX flags for all build types." FORCE)
+        
+        
+        set(CMAKE_CXX_FLAGS_RELEASE     "${TEMP_RTLIB} /Ox /Oy /Oi /Ot /Og /Ob2 /GF /D NDEBUG /D _HAS_EXCEPTIONS=0" CACHE STRING "Optimized CXX flags for Release." FORCE)
+        set(CMAKE_C_FLAGS_RELEASE       "${TEMP_RTLIB} /Ox /Oy /Oi /Ot /Og /Ob2 /GF /D NDEBUG"                      CACHE STRING "Optimized C flags for Release." FORCE)
+        
+        set(CMAKE_CXX_FLAGS_MINSIZEREL  "${TEMP_RTLIB} /O1 /Oy     /Os /Og /Ob1 /GF /D NDEBUG /D _HAS_EXCEPTIONS=0" CACHE STRING "Optimized CXX flags for MinSizeRel." FORCE)
+        set(CMAKE_C_FLAGS_MINSIZEREL    "${TEMP_RTLIB} /O1 /Oy     /Os /Og /Ob1 /GF /D NDEBUG"                      CACHE STRING "Optimized C flags for MinSizeRel."  FORCE)
     endif()
 else()
     # non-msvc needs build type - if no build type was provided, set a default one

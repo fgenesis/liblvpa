@@ -16,12 +16,23 @@ using namespace LVPA_NAMESPACE;
 
 // WARNING: The code in this file SUCKS. Please look away.
 
+static bool g_verboseLog = false;
 
-// TEMP HACK
 #ifdef logerror
 #undef logerror
 #endif
-#define logerror(...) {printf(__VA_ARGS__); putchar('\n');}
+#define logerror(...) {printf("ERROR: "); printf(__VA_ARGS__); putchar('\n');}
+
+#ifdef logwarn
+#undef logwarn
+#endif
+#define logwarn(...) {printf("WARNING: "); printf(__VA_ARGS__); putchar('\n');}
+
+#ifdef logdebug
+#undef logdebug
+#endif
+#define logdebug(...) if(g_verboseLog) {printf(__VA_ARGS__); putchar('\n');}
+
 
 enum PackCmd
 {
@@ -35,11 +46,13 @@ enum PackCmd
     PC_SET_ENCRYPT,     // * -e
     PC_SET_SCRAMBLE,    // * -x
     PC_SET_SOLID_COMPR, //   -S<name>=<A><#>
-    PC_SET_HDR_COMPR,   //   -H<name>=<A><#>
+    PC_SET_HDR_COMPR,   //   -H<A><#>
     PC_SET_HDR_ENCRYPT, //   -E
     PC_SET_KEY,         //   -K[b/h] <text>
 
     // things marked with * are reset on listfile line end
+    // <A> means algorithm
+    // <#> is a number
 };
 
 struct PackDef;
@@ -117,6 +130,8 @@ struct PackDef
 static uint8 g_hdrLevel = LVPACOMP_INHERIT;
 static uint8 g_hdrAlgo = LVPAPACK_INHERIT;
 static bool g_hdrEncr = false;
+static bool g_usingKey = false;
+static bool g_checkCRC = true; // during extraction
 static uint8 g_mode = 0;
 static uint32 g_filesDone = 0;
 static std::string g_relPath;
@@ -267,7 +282,7 @@ static void HexStrToByteArray(uint8 *dst, const char *str)
     }
 }
 
-static void _AddFileToArchive(LVPAFile *lvpa, PackDef *glob, const std::string& diskFileName, const std::string& archiveFileName)
+static bool _AddFileToArchive(LVPAFile *lvpa, PackDef *glob, const std::string& diskFileName, const std::string& archiveFileName)
 {
     logdebug("-> Add file '%s' [%s]", archiveFileName.c_str(), diskFileName.c_str());
 
@@ -275,7 +290,7 @@ static void _AddFileToArchive(LVPAFile *lvpa, PackDef *glob, const std::string& 
     if(!fh)
     {
         logerror("Add mode: file not found: '%s'", diskFileName.c_str());
-        return;
+        return false;
     }
     fseek(fh, 0, SEEK_END);
     uint32 s = ftell(fh);
@@ -286,19 +301,21 @@ static void _AddFileToArchive(LVPAFile *lvpa, PackDef *glob, const std::string& 
 
     lvpa->Add(archiveFileName.c_str(), memblock(buf, s), glob->solid ? glob->solidBlockName.c_str() : NULL,
         glob->algo, glob->level, glob->encrypt, glob->scramble);
+
+    return true;
 }
 
 static std::set<std::string> g_createdDirs;
 
-static void _UnpackFileFromArchive(LVPAFile *lvpa, const std::string& diskFileName, const std::string& archiveFileName) 
+static bool _UnpackFileFromArchive(LVPAFile *lvpa, const std::string& diskFileName, const std::string& archiveFileName) 
 {
     logdebug("-> Extract file '%s' [%s]", archiveFileName.c_str(), diskFileName.c_str());
 
-    memblock mb = lvpa->Get(archiveFileName.c_str());
+    memblock mb = lvpa->Get(archiveFileName.c_str(), g_checkCRC);
     if(!mb.ptr)
     {
         logerror("Extract mode: '%s' not in archive", archiveFileName.c_str());
-        return;
+        return false;
     }
 
     std::string diskdir = _PathStripLast(diskFileName);
@@ -320,37 +337,42 @@ static void _UnpackFileFromArchive(LVPAFile *lvpa, const std::string& diskFileNa
     if(!fh)
     {
         logerror("Extract mode: Can't write out '%s'", diskFileName.c_str());
-        return;
+        return false;
     }
 
     uint32 written = fwrite(mb.ptr, 1, mb.size, fh);
+    fclose(fh);
+
     if(written != mb.size)
     {
         logerror("Extract mode: '%s' written incompletely - disk full?", diskFileName.c_str());
+        return false;
     }
-
-    fclose(fh);
+    return true;
 }
 
-static void _DoFileByMode(LVPAFile *lvpa, PackDef *glob, const std::string& diskFileName, const std::string& archiveFileName) 
+static bool _DoFileByMode(LVPAFile *lvpa, PackDef *glob, const std::string& diskFileName, const std::string& archiveFileName) 
 {
     std::string afile = FixSlashes(archiveFileName);
+    bool result = false;
     switch(g_mode)
     {
         case 'a':
         case 'c':
-            _AddFileToArchive(lvpa, glob, diskFileName, afile);
+            result = _AddFileToArchive(lvpa, glob, diskFileName, afile);
             break;
 
         case 'x':
         case 'e':
-            _UnpackFileFromArchive(lvpa, diskFileName, afile);
+            result = _UnpackFileFromArchive(lvpa, diskFileName, afile);
             break;
 
         default:
             logerror("_DoFileByMode switch ERROR: %c", g_mode);
     }
-    ++g_filesDone; // this is used to decide whether to extract all files, or if an explicit file list was given
+    if(result)
+        ++g_filesDone; // this is used to decide whether to extract all files, or if an explicit file list was given
+    return result;
 }
 
 // uses name & relPath only, rest is stolen from glob
@@ -533,6 +555,7 @@ static void PackCmd_SetKey(LVPAFile *lvpa, PackDef *d, PackDef *glob)
     {
         lvpa->SetMasterKey((uint8*)d->keyStr.c_str(), d->keyStr.size());
     }
+    g_usingKey = true;
 }
 
 static void dep_authors(void)
@@ -563,17 +586,14 @@ static void usage(void)
            "Modes:\n"
            "  c - create new archive (overwrite if exist)\n"
            "  a - append to archive or create new\n"
-         //"  d - delete file or directory inside archive\n"
+         //"  d - delete file or directory inside archive\n" // TODO: implement this mode
            "  e - extract to current directory\n"
            "  x - extract with full path\n"
            "  t - test archive\n"
            "  l - list files, mode, and stats\n"
-         //"  r - repack with a different compression level\n"
            "\n"
            "Flags:\n"
-           "  -p <PATH> - use PATH as relative path to prepend each file, or as outdir.\n"   // PC_SET_PATH
-         //"  -d DIR - add all files inside directory\n"
-         //"  -D DIR - same as -d, but recursive\n"
+           "  -p <PATH> - use PATH as relative path to prepend each file, or as outdir.\n"       // PC_SET_PATH
            "  -c<A><#> - default compression level and algorithm\n"                              // PC_SET_COMPR
            "     A - can be none"
 #ifdef LVPA_SUPPORT_LZMA
@@ -593,7 +613,7 @@ static void usage(void)
 #endif
            ", or i (inherit)\n"
            "     # - a number in 0..9 or i (inherit)\n"
-           "  -f <FILE> - use a listfile\n"                                                      // processed inline
+           "  -f <FILE> - use a listfile (see docs for info)\n"                                  // processed inline
            "  -s<NAME> - put the following files into a solid block with name NAME.\n"           // PC_MAKE_SOLID
            "             (NAME can be empty)\n"
            "  -n - not solid block. This disables -s.\n"                                         // PC_NOT_SOLID
@@ -607,6 +627,7 @@ static void usage(void)
            "     b  - if -Kb is used, treat the key as hexadecimal binary string.\n"
            "      h - use not the string, but the SHA256 hash of it.\n"
            "     bh - treat as hex string and hash it.\n"
+           "  -F - fast (skip CRC check of uncompressed data when extracting)\n"
            "\n"
            "<archive> is the archive file to create/modify/read\n"
            "<files> is a list of files to add; directories are added recursively.\n"
@@ -616,7 +637,7 @@ static void usage(void)
            "they will be inherited from the headers.\n"
            "Note that LZMA level >= 7 takes large amounts of memory and time!\n"
            "\n"
-           "Examples: lvpak c -Hlzo9 -E -Kbh secret file01.txt file02...\n"
+           "Examples: lvpak c arch.lvpa -Hlzo9 -E -Kh secret file01.txt file02...\n"
            "          lvpak x arch.lvpa -p extractdir\n"
            );
     dep_authors();
@@ -789,7 +810,7 @@ static bool parseSingleCmd(char **argv, uint32 available, PackDef &pd, uint32& s
         }
 
         case 'v':
-            //log_setloglevel(3); // TODO FIXME
+            g_verboseLog = true;
             return false;
 
         case 'S':
@@ -831,7 +852,7 @@ static bool parseSingleCmd(char **argv, uint32 available, PackDef &pd, uint32& s
             char c;
             pd.useBinary = false;
             pd.useHash = false;
-            while(c = *str++) // assignment is intentional
+            while((c = *str++)) // assignment is intentional
             {
                 if(c == 'b')
                     pd.useBinary = true;
@@ -854,6 +875,10 @@ static bool parseSingleCmd(char **argv, uint32 available, PackDef &pd, uint32& s
             pd.init(PC_SET_HDR_ENCRYPT);
             return true;
         }
+
+        case 'F':
+            g_checkCRC = false;
+            return false;
 
         default:
             unknown(argv[0]);
@@ -1106,6 +1131,23 @@ int main(int argc, char *argv[])
         }
 
         case 'a':
+        {
+            if(g_hdrAlgo == LVPAPACK_INHERIT && g_hdrLevel == LVPACOMP_INHERIT)
+            {
+                // This is by design, the compression level is not explicitly stored in the master header,
+                // and currently there is no API to get the header compression algo used.
+                puts("WARNING: No header compression specified, using defaults.\n"
+                     "         Use -H to set algorithm and compression level to use.");
+            }
+            if(g_hdrEncr && !g_usingKey)
+            {
+                // TODO: add a check if the headers were really encrypted, or not. Add an API for this.
+                puts("WARNING: There is an encryption key set, but the headers are unencrypted.\n"
+                     "         Use -E to enable header encryption.");
+            }
+
+            // fall through
+        }
         case 'c':
         {
             if(cmds.empty())
@@ -1124,12 +1166,6 @@ int main(int argc, char *argv[])
                 bar.Update(true);
                 processPackDefList(lvpa, cmds, glob, &bar, &g_filesDone);
             }
-
-            // if nothing else specified, use for the header the same compression used for other files
-            if(g_hdrAlgo == LVPAPACK_INHERIT)
-                g_hdrAlgo = glob.algo;
-            if(g_hdrLevel == LVPACOMP_INHERIT)
-                g_hdrLevel = glob.level;
 
             result = lvpa.SaveAs(archive.c_str(), g_hdrLevel, g_hdrAlgo, g_hdrEncr);
             if(result)

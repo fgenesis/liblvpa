@@ -304,8 +304,8 @@ int TestLVPA_MixedSolid()
         ADD_MEMBLOCK(b1);
         ADD_MEMBLOCK(i1);
         ADD_MEMBLOCK(i2);
-        lvpa.SetSolidBlock("txt", LVPACOMP_FASTEST, LVPAPACK_LZMA);
-        lvpa.SetSolidBlock("bin", LVPACOMP_ULTRA, LVPAPACK_LZO1X);
+        lvpa.SetSolidBlock("txt", LVPACOMP_FASTEST, LVPAPACK_INHERIT);
+        lvpa.SetSolidBlock("bin", LVPACOMP_ULTRA, LVPAPACK_INHERIT);
         DO_CHECK_ALL();
         lvpa.SaveAs("~test.lvpa.tmp", 0); // leave headers uncompressed
         lvpa.Clear(false); // otherwise we would attempt to delete const memory
@@ -360,7 +360,7 @@ int TestLVPAUncompressedEncrScram()
     return 0;
 }
 
-int TestLVPA_LZMA_EncrScram()
+int TestLVPA_Compr_EncrScram()
 {
     INIT_TEST();
     g_encrypt = LVPAENCR_ENABLED;
@@ -369,7 +369,7 @@ int TestLVPA_LZMA_EncrScram()
         LVPAFile lvpa;
         DO_ADD_CHECK_ALL();
         lvpa.SetMasterKey(&g_masterKey[0], LVPAHash_Size);
-        lvpa.SaveAs("~test.lvpa.tmp", LVPACOMP_NORMAL, LVPAPACK_LZMA, true);
+        lvpa.SaveAs("~test.lvpa.tmp", LVPACOMP_NORMAL, LVPAPACK_INHERIT, true);
         lvpa.Clear(false); // otherwise we would attempt to delete const memory
     }
     DO_LOAD_AND_CHECK_ALL();
@@ -400,14 +400,224 @@ int TestLVPA_Everything()
         ADD_MEMBLOCK(b1);
         ADD_MEMBLOCK(i1);
         ADD_MEMBLOCK(i2);
-        lvpa.SetSolidBlock("txt", LVPACOMP_FASTEST, LVPAPACK_LZMA);
-        lvpa.SetSolidBlock("bin", LVPACOMP_ULTRA, LVPAPACK_LZO1X);
+        lvpa.SetSolidBlock("txt", LVPACOMP_FASTEST, LVPAPACK_INHERIT);
+        lvpa.SetSolidBlock("bin", LVPACOMP_ULTRA, LVPAPACK_INHERIT);
         DO_CHECK_ALL();
-        lvpa.SaveAs("~test.lvpa.tmp", LVPACOMP_NORMAL, LVPAPACK_LZO1X, true);
+        lvpa.SaveAs("~test.lvpa.tmp", LVPACOMP_NORMAL, LVPAPACK_INHERIT, true);
         lvpa.Clear(false); // otherwise we would attempt to delete const memory
     }
     DO_LOAD_AND_CHECK_ALL()
         return 0;
+}
+
+int TestLVPA_CreateAndAppend1()
+{
+    INIT_TEST();
+    {
+        LVPAFile lvpa;
+        ADD_MEMBLOCK(v3);
+        ADD_MEMBLOCK(v4);
+        ADD_MEMBLOCK(v5);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 10;
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+
+        ADD_MEMBLOCK(v6);
+
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+        DO_CHECK_SAME(v6);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 11;
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+        DO_CHECK_SAME(v6);
+        lvpa.Clear(false);
+    }
+    return 0;
+}
+
+int TestLVPA_CreateAndAppend2()
+{
+    INIT_TEST();
+    {
+        LVPAFile lvpa;
+        ADD_MEMBLOCK(v3);
+        ADD_MEMBLOCK(v4);
+        ADD_MEMBLOCK(v5);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 10;
+        // not reading before writing
+        ADD_MEMBLOCK(v6);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 11;
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+        DO_CHECK_SAME(v6);
+        lvpa.Clear(false);
+    }
+    return 0;
+}
+
+int TestLVPA_CreateAndAppend3()
+{
+    INIT_TEST();
+    {
+        LVPAFile lvpa;
+        g_blockName = "blk"; // <-- solid
+        ADD_MEMBLOCK(v3);
+        ADD_MEMBLOCK(v4);
+        ADD_MEMBLOCK(v5);
+        g_blockName = NULL;
+        g_scramble = true;
+        ADD_MEMBLOCK(i2);
+        g_scramble = false;
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 10;
+        // not reading before writing
+        ADD_MEMBLOCK(v6); // add a normal file without any attributes
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 11;
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+        DO_CHECK_SAME(v6);
+        DO_CHECK_SAME(i2);
+        lvpa.Clear(false);
+    }
+    return 0;
+}
+
+int TestLVPA_CreateAndAppend4()
+{
+    INIT_TEST();
+    {
+        LVPAFile lvpa;
+        ADD_MEMBLOCK(v3);
+        ADD_MEMBLOCK(v4);
+        ADD_MEMBLOCK(v5);
+        g_blockName = "blk"; // <-- solid
+        ADD_MEMBLOCK(i1);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 10;
+        // not reading before writing (solid)
+        g_blockName = "blk";
+        ADD_MEMBLOCK(v6);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 11;
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+        DO_CHECK_SAME(v6);
+        DO_CHECK_SAME(i1);
+        lvpa.Clear(false);
+    }
+    return 0;
+}
+
+int TestLVPA_CreateAndAppend5()
+{
+    INIT_TEST();
+    {
+        LVPAFile lvpa;
+        ADD_MEMBLOCK(v3);
+        ADD_MEMBLOCK(v4);
+        ADD_MEMBLOCK(v5);
+        g_blockName = "blk"; // <-- solid
+        ADD_MEMBLOCK(i1);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 10;
+
+        g_encrypt = LVPAENCR_ENABLED;
+        lvpa.SetMasterKey(&g_masterKey[0], LVPAHash_Size);
+
+        // not reading before writing (normal, enc)
+        g_blockName = NULL;
+        ADD_MEMBLOCK(i2);
+        // not reading before writing (scrambled, enc)
+        g_scramble = true;
+        ADD_MEMBLOCK(b1);
+        g_scramble = false;
+
+        // not reading before writing (solid, enc) - this should trigger encrypting the whole block!
+        g_blockName = "blk";
+        ADD_MEMBLOCK(v6);
+        lvpa.SaveAs("~test.lvpa.tmp");
+        lvpa.Clear(false);
+    }
+    {
+        LVPAFile lvpa;
+        lvpa.SetMasterKey(&g_masterKey[0], LVPAHash_Size);
+        if(!lvpa.LoadFrom("~test.lvpa.tmp"))
+            return 11;
+        DO_CHECK_SAME(v3);
+        DO_CHECK_SAME(v4);
+        DO_CHECK_SAME(v5);
+        DO_CHECK_SAME(v6);
+        DO_CHECK_SAME(i1);
+        DO_CHECK_SAME(i2);
+        DO_CHECK_SAME(b1);
+        
+        // solid block encrypted now?
+        uint32 i = lvpa.GetId("blk*");
+        if(i == uint32(-1))
+            return 10;
+        if( !(lvpa.GetFileInfo(i).flags & LVPAFLAG_ENCRYPTED) )
+            return 11;
+
+        lvpa.Clear(false);
+    }
+    return 0;
 }
 
 // --- Tests for ttvfs bindings ---

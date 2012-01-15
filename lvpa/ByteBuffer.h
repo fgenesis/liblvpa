@@ -5,6 +5,7 @@
 #include "ByteConverter.h"
 
 #include <string.h> // for memcpy
+#include <assert.h>
 
 
 LVPA_NAMESPACE_START
@@ -39,6 +40,14 @@ public:
         uint32 rpos, wpos, sizeparam, cursize;
         const char *action;
     };
+
+#ifdef BYTEBUFFER_NO_EXCEPTIONS
+    #define BYTEBUFFER_EXCEPT(bb, desc, sz) { Exception __e(bb, desc, sz); \
+        fprintf(stderr, "Exception in ByteBuffer: '%s', rpos: %u, wpos: %u, cursize: %u, sizeparam: %u", \
+            __e.action, __e.rpos, __e.wpos, __e.cursize, __e.sizeparam); abort(); }
+#else
+    #define BYTEBUFFER_EXCEPT(bb, desc, sz) throw ByteBufferException(bb, desc, sz)
+#endif
 
 private:
 
@@ -206,7 +215,7 @@ public:
     template <typename T> T read(uint32 pos) const
     {
         if(pos + sizeof(T) > size())
-            throw Exception(this, "read", sizeof(T));
+            BYTEBUFFER_EXCEPT(this, "read", sizeof(T));
         T val = *((T const*)(_buf + pos));
         ToLittleEndian<T>(val);
         return val;
@@ -217,7 +226,7 @@ public:
         if (_rpos + len <= size())
             memcpy(dest, &_buf[_rpos], len);
         else
-            throw Exception(this, "read-into", len);
+            BYTEBUFFER_EXCEPT(this, "read-into", len);
         _rpos += len;
     }
 
@@ -267,7 +276,7 @@ public:
     template <typename T> void put(uint32 pos, T value)
     {
         if(pos >= size())
-            throw Exception(this, "put", sizeof(T));
+            BYTEBUFFER_EXCEPT(this, "put", sizeof(T));
 
         ToLittleEndian<T>(value);
         *((T*)(_buf + pos)) = value;
@@ -307,7 +316,7 @@ protected:
     void _allocate(uint32 s)
     {
         if(!_growable && _buf) // only throw if we already have a buf
-            throw Exception(this, "_alloc+locked", s);
+            BYTEBUFFER_EXCEPT(this, "_alloc+locked", s);
 
         uint8 *newbuf = (uint8*)malloc(s);
         if(_buf)

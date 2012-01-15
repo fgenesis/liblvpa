@@ -1,1 +1,187 @@
-TODO WRITE ME
+================================
+Compression algorithm overview:
+================================
+
+LZF:
+- Speed: very fast compression, almost instant decompression
+- Compression ratio: medium/low
+- Does not support compression levels (ignored if given)
+- URL: http://oldhome.schmorp.de/marc/liblzf.html
+
+LZO (disabled by default):
+- Speed: fast/medium compression, very fast decompression
+- Compression ratio: medium
+- Decompression speed is independent of level (always very fast)
+- Level 9 is almost as good as ZIP for typical data
+- URL: http://www.oberhumer.com/opensource/lzo/
+
+ZIP:
+- Speed: fast compression, fast decompression
+- Compression ratio: medium/good
+- URL: http://www.zlib.net/
+
+LZMA:
+- Speed: Compression:   still fast (levels 1-3), very slow (levels >= 7);
+         Decompression: medium
+- Compression ratio: very good
+- High RAM usage when compressing, medium when decompressing
+- URL: http://www.7-zip.org/
+
+LZHAM (disabled by default):
+- Speed: Very slow compression, very fast decompression
+- Compression ratio: very good
+- High RAM usage when compressing, low when decompressing
+- Still an alpha! The bitstream may change when new versions are released and included in LVPA.
+- URL: http://lzham.googlecode.com/
+
+
+==========================
+=== LVPAK USAGE INFOS  ===
+==========================
+
+Uppercase cmd args (such as -H, -E, ...) should be given only once.
+
+Lowercase ones will affect the files that come after them, i.e.
+    -c0 -e image.png -c9 -e0 file.c file.h
+will compress both files with a different level, and encrypt only image.png (-e0 turns off encryption)
+
+If using a listfile, lowercase flags are "forgotten" once the line end is hit.
+
+Basically, a listfile is a collection of command line args, but with the exception above.
+Listfiles can also contain uppercase flags, but like on the command line, they should be specified only once.
+When extracting, a -p PATH that is given on the command line has higher priority than those in the listfile, and is prepended.
+(Because you want to extract to a specific directory, right?)
+
+
+=====================================
+Good practice for writing listfiles:
+=====================================
+
+- Create one listfile with the files you need, and one or two which give additional parameters.
+  The listfile containing files can be written by hand, but for more files, it might be better to generate it.
+  You'll have to write your own script for this, though.
+
+- For maximum speed and compression, try to put related and well-compressible files into one solid block, i.e.
+  if your program loads a bunch of scripts (text files), put them into one solid block to speed up loading,
+  reduce disk seek, and increase compression ratio.
+  
+- Small incompressible, but related files can be put into an own solid block with compression 0 (= no compression).
+
+- Large incompressible files should not be put into solid blocks.
+   - otherwise it has to load a huge blob of unrelated data just to access one file!
+
+- Mixed files can be put into an own solid block each, for example a 3D model and the textures it uses,
+  if you know that one file always needs the others.
+  This will not increase compression very much, but still reduces disk seek.
+  
+- If you need to keep RAM usage very low, avoid solid blocks.
+  The individual files contained within are implemented as pointers into the block's memory,
+  but the library can only free it when no files access it anymore.
+  (Use LVPAFile::FreeUnused() to free unreferenced solid block memory.
+   It's not very fast, do it only if necessary, and *NOT* in your main update loop.)
+  
+- Do not double-compress files. PNG, OGG, MP3, ... files are already compressed, and can rarely
+  be shrinked by more than ~3%.
+ 
+- Files which do not have some settings explicitly specified, or after a listfile linebreak,
+  "inherit" their settings from their parent (which is equal to -ci, for compression).
+  That is, a regular file gets compression level/algorithm and encryption status from the header;
+  A file in a solid block inherits from the solid block;
+  and a solid block checks the headers too.
+  This makes it easy to lazily specify settings:
+    $ lvpak c archive.lvpa -K password -Hlzma9 -E data.000 -s data.001 data.002....
+  The command above would create a completely encrypted and heavily compressed archive,
+  with the last 2 files in the unnamed solid block.
+
+- If files that arrive in the compressor still have inherit set, default settings are chosen:
+  * Level 3
+  * Compression algorithm: In the following order, the first supported one is chosen:
+     LZF, LZO, ZIP, LZMA, LZHAM.
+  
+The listfile defining the files could look roughly like this:
+
+---[snip]---
+-sLUA -e "scripts/entities/energylamp.lua"
+-sLUA -e "scripts/entities/eviljelly.lua"
+-sLUA -e "scripts/maps/node_seeompo.lua"
+-sTXT -e "data/particles/glow.txt"
+-sTXT -e "scripts/vox/naija_song_bind.txt"
+-sTXT -e "scripts/vox/naija_likidnappedbefore.txt"
+-sgui -e "gfx/gui/recipe-scroll.png"
+-sgui -e "gfx/gui/keyconfig-menu.png"
+-sGFX-SMALL -e "gfx/areyousure.png"
+-sGFX-SMALL -e "gfx/beam.png"
+-x -clzf -e "myverysecretfile.txt"
+-x -c0 -e "music/music.ogg"
+---[snip]---
+
+(-e turns on encryption for everything, -sBLAH puts this file into a solid block named BLAH,
+-x scrambles especially valuable files, -c0 turns off compression for files that are known to be incompressible.
+Files in solid blocks will always use the block's compression level, and ignore any -c if specified.)
+
+Then, create a listfile which defines all solid blocks and their compression algorithms/levels.
+Depending on the situation this one can be easily autogenerated, if you know how your data are organized.
+
+---[snip]---
+-SDATA=lzma3
+-SGFX-SMALL=0
+-SLUA=lzf
+-Sgui=0
+-STXT=lzo9
+---[snip]---
+
+
+Then, create a master listfile, which looks like this:
+(use a key if you enable encryption, otherwise don't)
+
+---[snip]---
+-Hlzf -E
+-Kb 128764178612ba726c762ba9280ff7239872d42b82af
+
+#include solid.listfile
+#include files.listfile
+---[snip]---
+
+(-Hlzf turns on header compression with LZF, -E turns on header encryption,
+-Kb supplies an encryption key in hex, which is converted to binary.)
+
+After packing, use lvpak to list all files in your archive (mode 'l') and be sure they are all organized
+as they should be, and that all files that should be encrypted/scrambled have the right attributes:
+
+   $ lvpak l archive.lvpa -K[your-key-here]
+
+Hint: If a file is scrambled, the name is gone.
+It is still possible to extract specific files by giving explicit file names to lvpak, like this:
+
+   $ lvpak x archive.lvpa -K[your-key-here] music/music.ogg
+   
+
+===============================
+A few notes about data safety:
+===============================
+
+- There is only one key per container file.
+
+- The en/decryption algorithm used is very fast, if you want to protect your data it can't be bad to turn on encryption.
+  If you do, try to generate & hide the key as good as possible.
+  (But note that it is my own non-standard work (inspired by ARC4), thus I can't guarantee that it is safe.
+   Look at the source if in doubt. Make your own if still in doubt.)
+
+- If a file is scrambled, it can't be extracted without knowing the exact file name,
+  if it is both encrypted and scrambled, the key and file name need to be known.
+  If you use this feature, be sure there are no list files or anything that could give clues about file names used.
+
+- It it not possible to scramble a solid block or files within one.
+
+- If at least one file in a solid block is encrypted, all other files in the same block are automatically encrypted as well.
+
+- Encrypted headers require the key to get any infos about the files stored inside.
+  If you use encryption, the best choice is to apply it to both header and files.
+
+
+
+
+Questions left?
+- Send me an email (see README)
+- lvpak without any parameters prints a short help that should explain all flags.
+- Read the code. Start at main().

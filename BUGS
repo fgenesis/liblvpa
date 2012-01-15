@@ -1,0 +1,5 @@
+lvpak:
+- Append mode with encrypted container files:
+  If the given key is wrong, the file will be truncated or corrupted without warning.
+
+- Compression progress bars do not update for ZIP & LZHAM

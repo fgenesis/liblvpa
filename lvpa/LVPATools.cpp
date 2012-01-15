@@ -376,5 +376,51 @@ uint32 ilog2(uint32 v)
     return r;
 }
 
+std::string GenerateTempFileName(const std::string& fn)
+{
+    // Start out simple.
+    std::string ret = fn + ".tmp";
+    FILE *fh = fopen(ret.c_str(), "r");
+    if(!fh && FileIsWriteable(ret.c_str()))
+        return ret; // good!
+
+    // still in use... try a bit harder.
+    if(fh)
+        fclose(fh);
+    char buf[L_tmpnam + 12];
+
+    for(uint32 i = 0; i < 256; ++i)
+    {
+        sprintf(&buf[0], "%u", i);
+        ret = fn + "_tmp" + &buf[0];
+        fh = fopen(ret.c_str(), "r");
+        if(!fh && FileIsWriteable(ret.c_str()))
+            return ret;
+        if(fh)
+            fclose(fh);
+    }
+
+    // Last, let the OS decide (this sucks on windows, that's why it's last)
+    if(tmpnam(&buf[0]))
+        if(FileIsWriteable(&buf[0]))
+            return &buf[0];
+
+    // Give up.
+    logerror("GenerateTempFileName(%s) - giving up");
+    return "";
+}
+
+bool FileIsWriteable(const std::string& fn)
+{
+    FILE *fh = fopen(fn.c_str(), "w");
+    if(fh)
+    {
+        fclose(fh);
+        remove(fn.c_str());
+        return true;
+    }
+    return false;
+}
+
 
 LVPA_NAMESPACE_END

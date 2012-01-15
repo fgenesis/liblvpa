@@ -32,5 +32,7 @@
 #  define LVPA_NAMESPACE_IMPL
 #endif
 
+#define BYTEBUFFER_NO_EXCEPTIONS
+
 
 #endif

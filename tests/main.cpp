@@ -4,7 +4,7 @@
 
 #include <cstdio>
 
-#define DO_TESTRUN(f) { printf("Running: %s\n", #f); int _r = (f); if(_r) { printf("TEST FAILED: Func %s returned %d", #f, _r); return 1; } }
+#define DO_TESTRUN(f) { printf("Running: %s\n", #f); int _r = (f); if(_r) { printf("TEST FAILED: Func %s returned %d\n", #f, _r); return 1; } }
 
 int main(int argc, char *argv[])
 {
@@ -37,16 +37,28 @@ int main(int argc, char *argv[])
     DO_TESTRUN(TestHPRC4LikeMassive());
 
     DO_TESTRUN(TestLVPAUncompressed());
+#ifdef LVPA_SUPPORT_LZO
     DO_TESTRUN(TestLVPA_LZO());
+#endif
+#ifdef LVPA_SUPPORT_LZMA
     DO_TESTRUN(TestLVPA_LZMA());
+#endif
+#ifdef LVPA_SUPPORT_ZLIB
     DO_TESTRUN(TestLVPA_Deflate());
+#endif
     DO_TESTRUN(TestLVPAUncompressedSolid());
     DO_TESTRUN(TestLVPA_MixedSolid());
     DO_TESTRUN(TestLVPAUncompressedEncrypted());
     DO_TESTRUN(TestLVPAUncompressedScrambled());
     DO_TESTRUN(TestLVPAUncompressedEncrScram());
-    DO_TESTRUN(TestLVPA_LZMA_EncrScram());
+    DO_TESTRUN(TestLVPA_Compr_EncrScram());
     DO_TESTRUN(TestLVPA_Everything());
+
+    DO_TESTRUN(TestLVPA_CreateAndAppend1());
+    DO_TESTRUN(TestLVPA_CreateAndAppend2());
+    DO_TESTRUN(TestLVPA_CreateAndAppend3());
+    DO_TESTRUN(TestLVPA_CreateAndAppend4());
+    DO_TESTRUN(TestLVPA_CreateAndAppend5());
 
 #ifdef LVPA_SUPPORT_TTVFS
     DO_TESTRUN(TestLVPA_VFS_ScrambledLoader());

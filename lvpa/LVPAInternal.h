@@ -5,15 +5,16 @@
 #ifdef _DEBUG
 #  define DBG if(1)
 #  define DEBUG(x) x;
-#  define logdebug(...) { printf(__VA_ARGS__); putchar('\n'); }
-#  define logerror(...) { fputs("ERROR: ",stdout); printf(__VA_ARGS__); putchar('\n'); }
+#  define logdebug(...) { printf("LVPA: "); printf(__VA_ARGS__); putchar('\n'); }
+
 #else
 #  define DBG if(0)
 #  define DEBUG(x)
 #  define logdebug(...)
-#  define logerror(...)
 #endif
 
+#define logwarn(...)  { printf("LVPA: WARNING: "); printf(__VA_ARGS__); putchar('\n'); }
+#define logerror(...) { printf("LVPA: ERROR: ");   printf(__VA_ARGS__); putchar('\n'); }
 
 //////////////////////////////////////
 // Platform defines
@@ -26,7 +27,7 @@
 
 #if defined( __WIN32__ ) || defined( WIN32 ) || defined( _WIN32 )
 #  define PLATFORM PLATFORM_WIN32
-#elif defined( __APPLE_CC__ )
+#elif defined( __APPLE_CC__ ) || defined(__APPLE__)
 #  define PLATFORM PLATFORM_APPLE
 #elif defined( __INTEL_COMPILER )
 #  define PLATFORM PLATFORM_INTEL
@@ -36,19 +37,14 @@
 
 #define COMPILER_MICROSOFT 0
 #define COMPILER_GNU       1
-#define COMPILER_BORLAND   2
-#define COMPILER_INTEL     3
+#define COMPILER_UNKNOWN   2
 
 #ifdef _MSC_VER
 #  define COMPILER COMPILER_MICROSOFT
-#elif defined( __BORLANDC__ )
-#  define COMPILER COMPILER_BORLAND
-#elif defined( __INTEL_COMPILER )
-#  define COMPILER COMPILER_INTEL
 #elif defined( __GNUC__ )
 #  define COMPILER COMPILER_GNU
 #else
-#  pragma error "FATAL ERROR: Unknown compiler."
+#  define COMPILER COMPILER_UNKNOWN
 #endif
 
 // stupid warnings
@@ -131,15 +127,6 @@
 #else
 # define PLATFORM_NAME "unknown"
 #endif
-
-#if COMPILER == COMPILER_GNU
-#  define ATTR_NORETURN __attribute__((noreturn))
-#  define ATTR_PRINTF(F,V) __attribute__ ((format (printf, F, V)))
-#else //COMPILER != COMPILER_GNU
-#  define ATTR_NORETURN
-#  define ATTR_PRINTF(F,V)
-#endif //COMPILER == COMPILER_GNU
-
 
 // taken from ACE
 // have seen on some systems that both defines exist, so if that is is the case, rely on this detection here

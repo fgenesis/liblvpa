@@ -73,16 +73,20 @@ HPRC4LikeCipher::HPRC4LikeCipher()
 
 void HPRC4LikeCipher::Init(const uint8 *key, uint32 size)
 {
-    MTRand mt;
-#ifdef IS_LITTLE_ENDIAN
-    mt.seed((uint32*)key, size / sizeof(uint32));
-#else
-    std::vector<uint32> keycopy(size);
+    // align key to 32 bits
+    std::vector<uint32> keycopy((size + sizeof(uint32) - 1) / sizeof(uint32));
+    DEBUG(ASSERT(keycopy.size() * sizeof(uint32) >= size));
+    // the last 3 bytes may be incomplete, null those before copying
+    keycopy[keycopy.size() - 1] = 0;
     memcpy(&keycopy[0], key, size);
-    for(uint32 i = 0; i < (size / sizeof(uint32)); ++i)
-        ToLittleEndian(*((uint32*)&keycopy[0]));
-    mt.seed((uint32*)&keycopy[0], size / sizeof(uint32));
+
+#if IS_BIG_ENDIAN
+    for(uint32 i = 0; i < keycopy.size(); ++i)
+        ToLittleEndian(&keycopy[i]);
 #endif
+
+    MTRand mt;
+    mt.seed((uint32*)&keycopy[0], keycopy.size());
 
     for(uint32 i = 0; i < 256; ++i)
         _sbox[i] = i | (mt.randInt() << 8); // lowest bit is always the exchange index, like in original RC4
@@ -140,7 +144,7 @@ void HPRC4LikeCipher::Apply(uint8 *buf, uint32 size)
             iswap(sbox[x], sbox[y]);
             t = sbox[x] + sbox[y];
             t &= 0xFF;
-    #ifdef IS_LITTLE_ENDIAN
+    #if IS_LITTLE_ENDIAN
             *ibuf++ ^= sbox[t];
     #else
             uint32 m = sbox[t];

@@ -1,5 +1,6 @@
 #include "LVPAInternal.h"
 #include "LVPAFile.h"
+#include "LVPATools.h"
 
 #include <memory>
 #include <set>
@@ -79,12 +80,7 @@ static ICompressor *allocCompressor(uint8 algo)
             return new ICompressor; // does nothing
     }
 
-    if(algo < LVPAPACK_MAX_SUPPORTED)
-    {
-        DEBUG(logerror("allocCompressor(%u): unsupported algorithm id, defaulting to none", uint32(algo)));
-        return new ICompressor;
-    }
-    // rest unknown
+    logerror("allocCompressor(): unsupported algorithm id: %u", uint32(algo));
     return NULL;
 }
 
@@ -668,7 +664,7 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
                 if(!(_headers[i].flags & LVPAFLAG_SCRAMBLED))
                     _PrepareFile(_headers[i], true);
 
-        if(loadFlags & LVPALOAD_ALL)
+        if(loadFlags == LVPALOAD_ALL)
             _CloseFile(); // got everything, file can be closed
     }
     // leave the file open, as we may want to read more later on
@@ -688,26 +684,24 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
     // check before showing progress bar
     if(!_headers.size())
     {
-        logerror("LVPA: No files to write to '%s'", fn);
+        logerror("No files to write to '%s'", fn);
         return false;
     }
 
     // apply default settings for INHERIT modes
     if(compression == LVPACOMP_INHERIT)
         compression = LVPA_DEFAULT_LEVEL;
-    if(algo == LVPAPACK_INHERIT)
-        algo = LVPAPACK_LZMA;
 
     std::auto_ptr<ICompressor> zhdr(allocCompressor(algo));
     if(!zhdr.get())
     {
-        logerror("LVPA: Unknown compression method '%u'", (uint32)algo);
+        logerror("Unknown compression method '%u'", (uint32)algo);
         return false;
     }
 
     if(encrypt && _masterKey.empty())
     {
-        logerror("WARNING: LVPAFile: File should be encrypted, but no master key - not encrypting.");
+        logwarn("Archive should be encrypted, but no master key - not encrypting.");
         encrypt = false;
     }
 
@@ -723,11 +717,10 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
     gProgress = &bar;
     bar.msg = "Preparing:    ";
 
-    // find out sizes early to prevent re-allocation,
-    // and prepare some of the header fields
+    // Check & load any data that are required but not yet present
     for(uint32 i = 0; i < headersCopy.size(); ++i)
     {
-        LVPAFileHeader& h = headersCopy[i];
+        const LVPAFileHeader& h = headersCopy[i];
 
         if(!h.good)
         {
@@ -735,7 +728,34 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
             continue;
         }
 
-        h.crcPacked = h.crcReal = 0;
+        if(h.flags & LVPAFLAG_SOLID)
+        {
+            LVPAFileHeader& sh = headersCopy[h.blockId];
+
+            // quick check - this file's data are known, but the block is not loaded?
+            // then the block has to be loaded, otherwise we can't append to it later.
+            // If sh.realSize is 0, the block does not yet exist (will be created further below)
+            if(h.data.ptr && !sh.data.ptr && sh.realSize)
+            {
+                memblock mbs = Get(sh.id, true); // this possibly modifies headers...
+                if(!mbs.ptr)
+                {
+                    logerror("Failed to load required solid block '%s'; can't add file '%s'", sh.filename.c_str(), h.filename.c_str());
+                    return false;
+                }
+                // ... so copy back the header afterwards
+                sh = _headers[sh.id];
+            }
+        }
+    }
+
+    // find out sizes early to prevent re-allocation,
+    // and prepare some of the header fields
+    for(uint32 i = 0; i < headersCopy.size(); ++i)
+    {
+        LVPAFileHeader& h = headersCopy[i];
+        if(!h.good)
+            continue;
 
         // make used algo/compression level consistent
         // level 0 is always no algorithm, and vice versa
@@ -749,10 +769,16 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
         if((h.flags & LVPAFLAG_SOLIDBLOCK) || !(h.flags & LVPAFLAG_SOLID))
         {
             if(h.flags & LVPAFLAG_SOLIDBLOCK)
-                h.realSize = h.packedSize = 0; // we will fill this soon
+                h.realSize = h.packedSize = 0; // we will fill this soon (***)
             else
             {
-                h.realSize = h.packedSize = h.data.size;
+                // Got pointer? If not, the archive was loaded, not all files used, and is now saved again.
+                // If we don't have a pointer, we keep the settings stored in the header.
+                // (**) Keep in mind that if a file inside of a solid block was loaded, the whole solid block was loaded,
+                //      and in turn if a solid block ptr is NULL, then none of the files in it was loaded.
+                if(h.data.ptr)
+                    h.realSize = h.packedSize = h.data.size;
+
                 _realSize += h.realSize; // for stats
             }
 
@@ -775,6 +801,13 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
                 h.flags &= ~LVPAFLAG_ENCRYPTED;
             else
                 h.flags |= LVPAFLAG_ENCRYPTED;
+
+
+            if( (h.flags & LVPAFLAG_ENCRYPTED) && _masterKey.empty())
+            {
+                logwarn("File '%s' should be encrypted, but no master key - not encrypting.", h.filename.c_str());
+                h.flags &= ~LVPAFLAG_ENCRYPTED;
+            }
         }
     }
 
@@ -794,15 +827,20 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
         // but because we set the packed flag later, we can remove all of them.
         if(h.flags & LVPAFLAG_SOLID)
         {
-            h.realSize = h.packedSize = h.data.size;
-            _realSize += h.data.size; // for stats
+            LVPAFileHeader& sh = headersCopy[h.blockId];
+
             h.flags &= ~LVPAFLAG_PACKED;
-            headersCopy[h.blockId].realSize += h.realSize + LVPA_EXTRA_BUFSIZE;
+
+            // See (**)
+            if(h.data.ptr)
+                h.realSize = h.packedSize = h.data.size;
+                
+            sh.realSize += h.realSize + LVPA_EXTRA_BUFSIZE;
+            _realSize += h.realSize; // for stats
 
             // overwrite settings if not specified otherwise
             // solid blocks were done in last iteration, now adjust the remaining files
             // files in a solid block will inherit its settings
-            LVPAFileHeader& sh = headersCopy[h.blockId];
             if(h.level == LVPACOMP_INHERIT)
                 h.level = sh.level;
             if(h.algo == LVPAPACK_INHERIT)
@@ -829,12 +867,21 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
     for(uint32 i = 0; i < headersCopy.size(); ++i)
     {
         const LVPAFileHeader& h = headersCopy[i];
-        // that indicates we need to write the file to a buffer
-        if(h.good && !(h.flags & LVPAFLAG_SOLID) && ((h.flags & LVPAFLAG_SOLIDBLOCK) || h.level != LVPACOMP_NONE))
+        // Do we need to write the file to a buffer?
+        // - All files but solid files, compressed, or a solid block that has data.
+        // - h.data.ptr can be NULL here, for solid blocks which have not yet been created (= saving first time)
+        // But h.data.ptr can also be NULL if the file was not loaded, see (**).
+        bool needbuf_solidblock = h.realSize && (h.flags & LVPAFLAG_SOLIDBLOCK);
+        bool needbuf_normal = h.data.ptr && (h.level != LVPACOMP_NONE) && !(h.flags & (LVPAFLAG_SOLID | LVPAFLAG_SOLIDBLOCK));
+        if(h.good && !(h.flags & LVPAFLAG_SOLID) && (needbuf_solidblock || needbuf_normal) )
         {
             // each file (or solid block) can have its own compression algo, and level
             fileBufs.v[i] = allocCompressor(h.algo);
-            fileBufs.v[i]->reserve(h.realSize);
+            if(!fileBufs.v[i])
+            {
+                logerror("Unknown compression algorithm %u for file '%s'", uint32(h.algo), h.filename.c_str());
+                return false;
+            }
         }
     }
     uint8 solidPadding[LVPA_EXTRA_BUFSIZE];
@@ -845,8 +892,30 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
         LVPAFileHeader& h = headersCopy[i];
         if(h.good && (h.flags & LVPAFLAG_SOLID))
         {
+            const LVPAFileHeader& sh = headersCopy[h.blockId];
+
+            // nothing loaded at all? then neither the block nor the file were touched,
+            // means it can be skipped here (and raw-copied below)
+            if(!h.data.ptr && !sh.data.ptr)
+                continue;
+
+            // the solid block was loaded but the file not? Get the pointer.
+            // If the block was loaded, a file was appended or changed, so we need to make sure
+            // that all related files are present in memory when it comes to building the buffer.
+            if(!h.data.ptr && sh.data.ptr)
+            {
+                h.data = Get(h.id); // note that this modifies the original headers
+                if(!h.data.ptr)
+                {
+                    logerror("Failed to load file '%s' from solid block '%s' to append!", h.filename.c_str(), sh.filename.c_str());
+                    return false;
+                }
+            }
+
             ICompressor *solidblock = fileBufs.v[h.blockId];
             DEBUG(ASSERT(solidblock));
+            DEBUG(ASSERT(h.data.ptr));
+            solidblock->reserve(h.realSize);
             solidblock->append(h.data.ptr, h.data.size);
             solidblock->append(&solidPadding[0], LVPA_EXTRA_BUFSIZE);
         }
@@ -869,34 +938,41 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
             if(!(h.flags & (LVPAFLAG_SOLID | LVPAFLAG_SOLIDBLOCK)))
             {
                 DEBUG(ASSERT(block->size() == 0));
+                DEBUG(ASSERT(h.data.ptr));
                 block->append(h.data.ptr, h.data.size);
             }
 
-            // calc unpacked crc before compressing
             if(block->size())
+            {
+                // calc unpacked crc before compressing
                 h.crcReal = CRC32::Calc(block->contents(), block->size());
 
-            if(h.level != LVPACOMP_NONE)
-                block->Compress(h.level, drawCompressProgressBar);
+                if(h.level != LVPACOMP_NONE)
+                    block->Compress(h.level, drawCompressProgressBar);
 
-            h.packedSize = block->size();
-            if(block->Compressed())
-            {
-                h.flags |= LVPAFLAG_PACKED; // this flag was cleared earlier
-                h.crcPacked = CRC32::Calc(block->contents(), block->size());
-            }
+                h.packedSize = block->size();
+                if(block->Compressed())
+                {
+                    h.flags |= LVPAFLAG_PACKED; // this flag was cleared earlier
+                    h.crcPacked = CRC32::Calc(block->contents(), block->size());
+                }
 
-            // encrypt? these blocks will be thrown away, so we can just directly apply encryption
-            if(block->size())
+                // encrypt? these blocks will be thrown away, so we can just directly apply encryption
                 _CryptBlock((uint8*)block->contents(), h, true);
 
-            bar.PartialFix();
-
-            // for stats
-            _packedSize += block->size();
+                bar.PartialFix();
+            }
+            else
+            {
+                goto no_block_data; // ------->
+            }
         }
-        else
+        else if(h.data.ptr)
         {
+            // Just to be sure, these must be set earlier
+            DEBUG(ASSERT(h.data.size == h.realSize));
+            DEBUG(ASSERT(h.data.size == h.packedSize));
+
             // we still need to calc crc
             h.crcReal = CRC32::Calc(h.data.ptr, h.data.size);
 
@@ -907,11 +983,21 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
                 fileBufs.v[i]->append(h.data.ptr, h.data.size);
                 _CryptBlock((uint8*)fileBufs.v[i]->contents(), h, true);
             }
-
-            // for stats - not encrypted, but it needs to be accounted
-            if(!(h.flags & LVPAFLAG_SOLID))
-                _packedSize += h.data.size;
         }
+        else
+        {
+            no_block_data: // <---------
+            // h.data.ptr == NULL, and no compressor block? Too bad. (**)
+
+            // However, this was purposely set to 0 in case of a solid block. (***)
+            // If it's not going to be compressed now, restore the setting.
+            if(h.flags & LVPAFLAG_SOLIDBLOCK)
+                h.packedSize = _headers[h.id].packedSize;
+        }
+
+        // for stats
+        if(!(h.flags & LVPAFLAG_SOLID))
+            _packedSize += h.packedSize;
 
         *zhdr << h;
         ++writtenHeaders;
@@ -919,11 +1005,11 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
 
     if(!writtenHeaders)
     {
-        logerror("LVPA: No valid files - there were some, but they got lost on the way. Something is wrong.");
+        logerror("No valid files - there were some, but they got lost on the way. Something is wrong.");
         return false;
     }
 
-    // prepare master header (unfinished!)
+    // prepare master header (incomplete - not yet knowing all data!)
     LVPAMasterHeader masterHdr;
     ByteBuffer masterBuf;
 
@@ -966,10 +1052,18 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
     bar.total = writtenHeaders;
     bar.Update();
 
-    // close the file if already open, to allow overwriting
-    _CloseFile();
+    std::string tmpfn = GenerateTempFileName(fn);
+    if(tmpfn.empty())
+    {
+        logerror("Failed to generate temporary file name for output!", fn);
+        return false;
 
-    FILE *outfile = fopen(fn, "wb");
+        // TODO: In that case, we could still open the original file and start writing to it,
+        // (?)   possibly pre-loading files with h.data.ptr == NULL, because after fopen()
+        //       it is no longer possible to read from the old file...
+    }
+
+    FILE *outfile = fopen(tmpfn.c_str(), "wb");
     if(!outfile)
     {
         logerror("Failed to open '%s' for writing!", fn);
@@ -1034,10 +1128,41 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
         }
         else
         {
-            expected = h.data.size;
-            written = 0;
-            if(h.data.size)
-                written = fwrite(h.data.ptr, 1, h.data.size, outfile);
+            if(h.data.ptr)
+            {
+                expected = h.data.size;
+                written = 0;
+                if(h.data.size)
+                    written = fwrite(h.data.ptr, 1, h.data.size, outfile);
+            }
+            else
+            {
+                // When we are here, the file was not loaded until now,
+                // does not exist in memory, and has all flags intact:
+                // If it is compressed or encrypted, the data from the header are still valid
+                // Just load the binary blob, and dump it into the output file.
+                DEBUG(ASSERT(h.data.size == 0));
+                DEBUG(ASSERT(h.packedSize));
+                DEBUG(ASSERT(h.realSize));
+                memblock blob;
+                blob.size = h.packedSize;
+                blob.ptr = new uint8[blob.size + LVPA_EXTRA_BUFSIZE];
+
+                if(!_LoadFile(blob, h))
+                {
+                    logerror("Can't load '%s' from original file to raw-copy to outfile", h.filename.c_str());
+                    delete [] blob.ptr;
+                    fclose(outfile);
+                    return false;
+                }
+                // TODO: if encrypted, decrypt & add a CRC check here
+                
+                expected = blob.size;
+                written = 0;
+                if(blob.size)
+                    written = fwrite(blob.ptr, 1, blob.size, outfile);
+                delete [] blob.ptr;
+            }
         }
         if(written != expected)
         {
@@ -1049,8 +1174,22 @@ bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL 
         bar.Update();
     }
 
+    // close the file if still open, to allow deletion
+    _CloseFile();
+
     fclose(outfile);
+
+    remove(fn);
+    int renameRes = rename(tmpfn.c_str(), fn);
     bar.Finalize();
+
+    if(renameRes != 0)
+    {
+        logerror("Renaming temp. output file (%s) failed: %s", tmpfn.c_str(), strerror(renameRes));
+        logerror("You can still copy/rename it by hand now.");
+        return false; // Return false anyways to indicate it didn't work 100% as it should.
+    }
+
     return true;
 }
 

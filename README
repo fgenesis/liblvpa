@@ -4,6 +4,14 @@ LVPA -- Lost Vikings Project Archive
 Originally written for https://github.com/fgenesis/lv3proj
 - hence the name.
 
+
+----------[ TL;DR ]------------
+- Build with CMake or drop into your project (but check LVPACompileConfig.h in that case)
+- Use lvpak from the commandline to create/edit/list/unpack LVPA archives
+  (Open lvpak without parameters to see a short help, and see lvpak.txt for some additional info)
+
+
+
 ----------[ About ]------------
 
 LVPA is a library and container file format optimized for games.
@@ -58,9 +66,51 @@ You can additionally:
 - build LVPA <-> ttvfs bindings 
 - configure everything to link statically (if building on windows with MSVC)
 
+Alternatively, drop the source files into your project, include at least one compression backend,
+edit the LVPA_SUPPORT_* defines in LVPACompileConfig.h, and use the build system of your choice.
+
+-------[ Limitations ]--------
+
+LVPA files are limited to 4 GB. They cannot grow beyond this size,
+and they cannot contain files larger than 4 GB.
+This will be addressed in future.
+
+Files inside an archive will not have timestamps, ownership, or any other metadata preserved.
+This is considered unnecessary information and not included by design.
+
+For encryption, only symmetric ciphers are supported.
+
+File names in archives should contain ASCII/Latin characters only - UTF-8 is not supported.
+
+Adding files requires rebuilding an archive. Unchanged data are binary-copied,
+which makes this process a lot faster than if they had to be recompressed.
+
+Creating large archives requires large amounts of RAM. All data are processed in-memory first,
+and then written to disk. It is still possible to create an archive in multiple steps
+by appending very large files consecutively, if RAM is low.
+This may be improved in future.
+
+-------[ Portability ]--------
+
+It is known to work on the following operating systems, in 32 and 64 bits:
+- Windows (only tested on XP and up, but it should work on older versions too)
+- Linux
+- Mac OSX Snow Leopard + Lion (again, it probably works on older ones)
+- FreeBSD
+
+For other x86-based systems it should - if at all - only require minor changes
+to some headers to work, and possibly some more additional OS-specific code in LVPATools.cpp,
+if your OS's support for POSIX is as bad as on windows.
+Not tested on ARM/PPC/Big endian.
+The library is endian-neutral except for the ByteBuffer class and the encryption routines,
+but there is code to handle big endian, so it *should* work there as well.
+Run the testsuite if in doubt.
+
+LVPA files are always little endian.
+
 
 ---------[ License ]----------
-Copyright (C) 2011 False.Genesis
+Copyright (C) 2011/2012 False.Genesis
 
 This software is dual-licensed depending on the included external
 libraries, which have the following licenses:

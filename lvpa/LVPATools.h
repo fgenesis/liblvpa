@@ -27,6 +27,8 @@ std::string FixSlashes(const std::string& s);
 const char *PathToFileName(const char *str);
 void MakeSlashTerminated(std::string& s);
 uint32 GetConsoleWidth(void);
+std::string GenerateTempFileName(const std::string& fn);
+bool FileIsWriteable(const std::string& fn);
 
 // for lvpak
 bool WildcardMatch(const char *str, const char *pattern);

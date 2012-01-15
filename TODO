@@ -1,0 +1,16 @@
+
+- optimize buffers in *Compressor.cpp
+  -> add streaming interface for those algorithms that support it? 
+
+- allow to make subclass of LVPAFile that can insert custom data on write,
+  and read custom data on read?
+
+- Add delete mode for lvpak
+
+- append mode: should refuse if key is wrong
+
+- remove the progress bar from LVPAFile.cpp and lvpa library code, only lvpak should have it
+
+- rewrite LVPAFile::SaveAs() -- someday
+
+- split platform stuff from LVPAInternal.h and change global define names a bit.
