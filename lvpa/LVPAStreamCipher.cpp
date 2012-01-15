@@ -93,10 +93,10 @@ void HPRC4LikeCipher::Init(const uint8 *key, uint32 size)
 
     uint32 a = 0, b = 0;
 
-    for(uint32 i = 0; i < 256; ++i)
+    for(uint32 i = 0; i < std::max<uint32>(256, size); ++i)
     {
-        b += key[a] + _sbox[i];
-        iswap(_sbox[i], _sbox[b & 0xFF]);
+        b += key[a] + _sbox[i & 0xFF];
+        iswap(_sbox[i & 0xFF], _sbox[b & 0xFF]);
         ++a;
         a %= size;
     }
