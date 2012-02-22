@@ -13,48 +13,16 @@ VFS_NAMESPACE_START
 #endif
 
 VFSDirLVPA::VFSDirLVPA(LVPAFile *f, bool asSubdir)
+: VFSDir(asSubdir ? f->GetMyName() : StripLastPath(f->GetMyName()).c_str()), _lvpa(f)
 {
-    _lvpa = f;
-    _fullname = FixPath(asSubdir ? f->GetMyName() : StripLastPath(f->GetMyName()));
-    _name = PathToFileName(_fullname.c_str());
 }
 
-VFSDir *VFSDirLVPA::createNew(void) const
+VFSDir *VFSDirLVPA::createNew(const char *dir) const
 {
-    return new VFSDir; // inside an LVPA file; only the base dir can be a real VFSDirLVPA. (FIXME: is this really correct?)
+    return new VFSDir(dir); // inside an LVPA file; only the base dir can be a real VFSDirLVPA. (FIXME: is this really correct?)
 }
-/*
-VFSDirLVPA *VFSDirLVPA::_getSubdir(const char *name)
-{
-    char *slashpos = (char *)strchr(name, '/');
 
-    // if there is a '/' in the string, descend into subdir and continue there
-    if(slashpos)
-    {
-        *slashpos = 0; // temp change to avoid excess string mangling
-        const char *sub = slashpos + 1;
-
-        Dirs::iterator it = _subdirs.find(name);
-        VFSDirLVPA *subdir;
-        if(it == _subdirs.end())
-        {
-            subdir = new VFSDirLVPA(_lvpa);
-            subdir->_name = name;
-            _subdirs[subdir->name()] = subdir;
-        }
-        else
-            subdir = (VFSDirLVPA*)it->second;
-
-        *slashpos = '/'; // restore original string
-
-        return subdir->_getSubdir(sub);
-    }
-
-    // no more '/' in dir name, means the remaining string is the file name only, and the current dir is the one we want.
-    return this;
-}
-*/
-unsigned int VFSDirLVPA::load(const char *) // arg ignored
+unsigned int VFSDirLVPA::load(const char * /*ignored*/)
 {
     unsigned int ctr = 0;
     for(uint32 i = 0; i < _lvpa->HeaderCount(); i++)
@@ -69,12 +37,7 @@ unsigned int VFSDirLVPA::load(const char *) // arg ignored
         if(hdr.flags & LVPAFLAG_SOLIDBLOCK || (hdr.flags & LVPAFLAG_SCRAMBLED && hdr.filename.empty()))
             continue;
 
-        //VFSDirLVPA *subdir = _getSubdir(hdr.filename.c_str());
-        //std::string sdname = StripLastPath(hdr.filename);
-        //VFSDir *subdir = getDir(sdname.c_str(), true);
         VFSFileLVPA *file = new VFSFileLVPA(_lvpa, i);
-        //logdebug("VFS/LVPA: subdir: '%s'; file: '%s'", subdir->fullname(), file->fullname());
-        //subdir->add(file, true);
         addRecursive(file, true);
         file->ref--; // file was added and refcount increased, decref here
         ++ctr;

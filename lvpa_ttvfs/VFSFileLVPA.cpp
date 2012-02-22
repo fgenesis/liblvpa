@@ -9,18 +9,14 @@ VFS_NAMESPACE_START
   using namespace LVPA_NAMESPACE;
 #endif
 
-VFSFileLVPA::VFSFileLVPA(LVPAFile *src, unsigned int headerId) : VFSFile(),
-_fixedStr(NULL)
+VFSFileLVPA::VFSFileLVPA(LVPAFile *src, unsigned int headerId)
+: VFSFile(src->GetFileInfo(headerId).filename.c_str()), _fixedStr(NULL)
 {
     _mode = "b"; // binary mode by default
     _lvpa = src;
     _pos = 0;
-    const LVPAFileHeader& hdr = src->GetFileInfo(headerId);
-    _size = hdr.realSize;
+    _size = src->GetFileInfo(headerId).realSize;
     _headerId = headerId;
-
-    _fullname = FixPath(hdr.filename);
-    _name = PathToFileName(_fullname.c_str());
 }
 
 VFSFileLVPA::~VFSFileLVPA()
@@ -29,7 +25,7 @@ VFSFileLVPA::~VFSFileLVPA()
         delete [] _fixedStr;
 }
 
-bool VFSFileLVPA::open(const char *fn /* = NULL */, const char *mode /* = NULL */)
+bool VFSFileLVPA::open(const char *mode /* = NULL */)
 {
     VFS_GUARD_OPT(this);
 
@@ -58,18 +54,6 @@ bool VFSFileLVPA::iseof(void) const
 {
     VFS_GUARD_OPT(this);
     return _pos >= _size;
-}
-
-const char *VFSFileLVPA::name(void) const
-{
-    VFS_GUARD_OPT(this);
-    return _name;
-}
-
-const char *VFSFileLVPA::fullname(void) const
-{
-    VFS_GUARD_OPT(this);
-    return _fullname.c_str();
 }
 
 bool VFSFileLVPA::close(void)
@@ -162,12 +146,23 @@ vfspos VFSFileLVPA::size(vfspos newsize)
     return n;
 }
 
-const void *VFSFileLVPA::getBuf(void)
+const void *VFSFileLVPA::getBuf(allocator_func alloc /* = NULL */, delete_func del /* = NULL */)
 {
     VFS_GUARD_OPT(this);
     // _fixedStr gets deleted on mode change, so doing this check here is fine
     if(_fixedStr)
         return (const uint8*)_fixedStr;
+
+    // Custom allocator specified?
+    // We know that LVPA's ByteBuffer uses new[] to allocate its buffers.
+    // In case of a custom allocator, the memory has to be read and copied, which is
+    // the default behavior.
+    if(alloc)
+    {
+        char *buf = (char*)VFSFile::getBuf(alloc, del);
+        _fixedStr = buf; // read() fixes the string in text mode.
+        return buf;
+    }
 
     memblock mb = _lvpa->Get(_headerId);
     const uint8 *buf = mb.ptr;
@@ -187,7 +182,7 @@ void VFSFileLVPA::dropBuf(bool del)
     {
         if(_fixedStr)
         {
-            delete [] _fixedStr;
+            delBuf(_fixedStr);
             _fixedStr = NULL;
         }
         _lvpa->Free(_headerId);

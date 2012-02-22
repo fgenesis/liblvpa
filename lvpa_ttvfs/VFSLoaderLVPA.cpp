@@ -12,7 +12,7 @@ VFSLoaderLVPA::VFSLoaderLVPA(LVPA_NAMESPACE_IMPL LVPAFile *lvpa)
 {
 }
 
-VFSFile *VFSLoaderLVPA::Load(const char *fn)
+VFSFile *VFSLoaderLVPA::Load(const char *fn, const char * /*ignored*/)
 {
     unsigned int id = _lvpa->GetId(fn); // this will also trigger file name indexing in case this file is scrambled, but the name correct
     if(id == -1)

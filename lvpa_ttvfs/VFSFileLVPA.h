@@ -15,11 +15,9 @@ class VFSFileLVPA : public VFSFile
 public:
     VFSFileLVPA(LVPA_NAMESPACE_IMPL LVPAFile *src, unsigned int headerId);
     virtual ~VFSFileLVPA();
-    virtual bool open(const char *fn = NULL, const char *mode = NULL);
+    virtual bool open(const char *mode = NULL);
     virtual bool isopen(void) const;
     virtual bool iseof(void) const;
-    virtual const char *name(void) const;
-    virtual const char *fullname(void) const;
     virtual bool close(void);
     virtual bool seek(vfspos pos);
     virtual bool flush(void);
@@ -28,7 +26,7 @@ public:
     virtual unsigned int write(const void *src, unsigned int bytes);
     virtual vfspos size(void);
     virtual vfspos size(vfspos newsize);
-    virtual const void *getBuf(void);
+    virtual const void *getBuf(allocator_func alloc = NULL, delete_func del = NULL);
     virtual void dropBuf(bool del);
     virtual const char *getType(void) const { return "LVPA"; }
 
@@ -38,8 +36,6 @@ protected:
     unsigned int _pos;
     unsigned int _size;
     unsigned int _headerId;
-    const char *_name;
-    std::string _fullname;
     std::string _mode;
     LVPA_NAMESPACE_IMPL LVPAFile *_lvpa;
     char *_fixedStr; // for \n fixed string in text mode. cleared when mode is changed

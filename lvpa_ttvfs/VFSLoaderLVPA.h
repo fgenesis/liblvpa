@@ -17,7 +17,7 @@ class VFSLoaderLVPA : public VFSLoader
 public:
     VFSLoaderLVPA(LVPA_NAMESPACE_IMPL LVPAFile *lvpa);
     virtual ~VFSLoaderLVPA() {}
-    virtual VFSFile *Load(const char *fn);
+    virtual VFSFile *Load(const char *fn, const char *unmangled);
 
 protected:
     LVPA_NAMESPACE_IMPL LVPAFile *_lvpa;
