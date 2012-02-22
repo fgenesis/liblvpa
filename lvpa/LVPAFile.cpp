@@ -672,13 +672,13 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
     return true;
 }
 
-bool LVPAFile::Save(uint8 compression, uint8 algo /* = LVPAPACK_INHERIT */, bool encrypt /* = false */)
+bool LVPAFile::Save(LVPAComprLevels compression, LVPAAlgos algo /* = LVPAPACK_INHERIT */, bool encrypt /* = false */)
 {
     return SaveAs(_ownName.c_str(), compression, algo, encrypt);
 }
 
 // note: this function must NOT modify existing headers in memory!
-bool LVPAFile::SaveAs(const char *fn, uint8 compression /* = LVPA_DEFAULT_LEVEL */, uint8 algo /* = LVPAPACK_INHERIT */,
+bool LVPAFile::SaveAs(const char *fn, LVPAComprLevels compression /* = LVPA_DEFAULT_LEVEL */, LVPAAlgos algo /* = LVPAPACK_INHERIT */,
                       bool encrypt /* = false */)
 {
     // check before showing progress bar
@@ -1574,7 +1574,7 @@ bool LVPAFile::_FindHeaderByHash(uint8 *hash, uint32 *id)
 }
 
 
-bool IsSupported(LVPAAlgorithms algo)
+bool IsSupported(LVPAAlgos algo)
 {
     switch(algo)
     {

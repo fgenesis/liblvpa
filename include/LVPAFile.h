@@ -49,6 +49,7 @@ enum LVPAFileFlags
                                 // If ENCRYPTED and SCRAMBLED are combined, the key to encrypt the file will be HASH(master key .. HASH(filename))
 };
 
+// TODO: Deprecate this!
 enum LVPALoadFlags
 {
     LVPALOAD_NONE     = 0x00, // load only headers
@@ -56,7 +57,7 @@ enum LVPALoadFlags
     LVPALOAD_ALL      = 0xFF  // load all files
 };
 
-enum LVPAAlgorithms
+enum LVPAAlgos
 {
     LVPAPACK_NONE,
     LVPAPACK_LZMA,
@@ -70,7 +71,7 @@ enum LVPAAlgorithms
     LVPAPACK_INHERIT = 0xFF // select the one used by parent
 };
 
-enum LVPAEncrpytions
+enum LVPAEncr
 {
     LVPAENCR_NONE,
     LVPAENCR_ENABLED, // currently, the code supports only on, off, and inherit
@@ -78,7 +79,7 @@ enum LVPAEncrpytions
     LVPAENCR_INHERIT = 0xFF // select the one used by parent
 };
 
-enum LVPACompressionLevels
+enum LVPAComprLevels
 {
     LVPACOMP_NONE = 0, // just store
     LVPACOMP_FASTEST = 1, // very fast, low memory
@@ -166,8 +167,8 @@ public:
     LVPAFile();
     ~LVPAFile();
     bool LoadFrom(const char *fn, LVPALoadFlags loadFlags = LVPALOAD_NONE);
-    virtual bool Save(uint8 compression = LVPA_DEFAULT_LEVEL, uint8 algo = LVPAPACK_INHERIT, bool encrypt = false);
-    virtual bool SaveAs(const char *fn, uint8 compression = LVPA_DEFAULT_LEVEL, uint8 algo = LVPAPACK_INHERIT, bool encrypt = false);
+    virtual bool Save(LVPAComprLevels compression = LVPA_DEFAULT_LEVEL, LVPAAlgos algo = LVPAPACK_INHERIT, bool encrypt = false);
+    virtual bool SaveAs(const char *fn, LVPAComprLevels compression = LVPA_DEFAULT_LEVEL, LVPAAlgos algo = LVPAPACK_INHERIT, bool encrypt = false);
 
     virtual void Add(const char *fn, memblock mb, const char *solidBlockName = NULL, uint8 algo = LVPAPACK_INHERIT,
         uint8 level = LVPACOMP_INHERIT, uint8 encrypt = LVPAENCR_INHERIT, bool scramble = false); // adds a file, overwriting if exists
@@ -245,10 +246,10 @@ private:
 
 class LVPAFileReadOnly : public LVPAFile
 {
-    virtual bool SaveAs(const char *fn, uint8 compression = LVPA_DEFAULT_LEVEL, uint8 algo = LVPAPACK_INHERIT, bool encrypt = false) { return false; }
+    virtual bool SaveAs(const char *fn, LVPAComprLevels compression = LVPA_DEFAULT_LEVEL, LVPAAlgos algo = LVPAPACK_INHERIT, bool encrypt = false) { return false; }
 };
 
-bool IsSupported(LVPAAlgorithms algo);
+bool IsSupported(LVPAAlgos algo);
 
 LVPA_NAMESPACE_END
 

@@ -18,11 +18,13 @@ class ByteBuffer
 {
 public:
     typedef void (*delete_func)(void*);
+    typedef void *(*allocator_func)(size_t);
+
     enum Mode // for creation with existing pointers
     {
         COPY,  //- Make a copy of the buffer (default action).
         REUSE,   //- Use the passed-in buffer as is.  Requires the pointer
-                 //  to remain valid over the life of this object.
+        //  to remain valid over the life of this object.
         TAKE_OVER, //- Take over the passed-in buffer; it will be deleted on object destruction.
     };
 
@@ -42,22 +44,22 @@ public:
     };
 
 #ifdef BYTEBUFFER_NO_EXCEPTIONS
-    #define BYTEBUFFER_EXCEPT(bb, desc, sz) { Exception __e(bb, desc, sz); \
-        fprintf(stderr, "Exception in ByteBuffer: '%s', rpos: %u, wpos: %u, cursize: %u, sizeparam: %u", \
-            __e.action, __e.rpos, __e.wpos, __e.cursize, __e.sizeparam); abort(); }
+#define BYTEBUFFER_EXCEPT(bb, desc, sz) { Exception __e(bb, desc, sz); \
+    fprintf(stderr, "Exception in ByteBuffer: '%s', rpos: %u, wpos: %u, cursize: %u, sizeparam: %u", \
+    __e.action, __e.rpos, __e.wpos, __e.cursize, __e.sizeparam); abort(); }
 #else
-    #define BYTEBUFFER_EXCEPT(bb, desc, sz) throw ByteBufferException(bb, desc, sz)
+#define BYTEBUFFER_EXCEPT(bb, desc, sz) throw Exception(bb, desc, sz)
 #endif
 
-private:
+protected:
 
-    delete_func _delfunc;
+    uint8 *_buf; // the ptr to the buffer that holds all the bytes
     uint32 _rpos, // read position, [0 ... _size]
         _wpos, // write position, [0 ... _size]
         _res,  // reserved buffer size, [0 ... _size ... _res]
         _size; // used buffer size
-
-    uint8 *_buf; // the ptr to the buffer that holds all the bytes  
+    delete_func _delfunc;
+    allocator_func _allocfunc;
     bool _mybuf; // if true, destructor deletes buffer
     bool _growable; // default true, if false, buffer will not re-allocate more space
 
@@ -65,38 +67,76 @@ public:
 
 
     ByteBuffer()
-        : _rpos(0), _wpos(0), _buf(NULL), _size(0), _growable(true)
+        : _rpos(0), _wpos(0), _buf(NULL), _size(0), _growable(true), _res(0), _mybuf(false), _delfunc(NULL),
+        _allocfunc(NULL)
     {
-        _allocate(128);
     }
     ByteBuffer(uint32 res)
-        : _rpos(0), _wpos(0), _buf(NULL), _size(0), _growable(true)
+        : _rpos(0), _wpos(0), _buf(NULL), _size(0), _growable(true), _res(0), _mybuf(false), _delfunc(NULL),
+        _allocfunc(NULL)
     {
         _allocate(res);
     }
-    ByteBuffer(const ByteBuffer &buf, uint32 extra = 0)
-        : _rpos(0), _wpos(0), _buf(NULL), _size(0), _growable(true)
+    ByteBuffer(ByteBuffer &buf, Mode mode = COPY, uint32 extra = 0)
+        : _rpos(0), _wpos(0), _buf(NULL), _size(0), _growable(true), _res(0), _mybuf(false), _delfunc(NULL),
+        _allocfunc(NULL)
     {
-        _allocate(buf.size() + extra + 64);
-        append(buf);
+        init(buf, mode, extra);
     }
     // del param only used with TAKE_OVER, extra only used with COPY
     ByteBuffer(void *buf, uint32 size, Mode mode = COPY, delete_func del = NULL, uint32 extra = 0)
         : _rpos(0), _wpos(0), _size(size), _buf(NULL), _growable(true), _delfunc(del),
-        _mybuf(false) // for mode == REUSE
+        _mybuf(false), _allocfunc(NULL) // for mode == REUSE
     {
+        init(buf, size, mode, del, extra);
+    }
+
+    void init(void *buf, uint32 size, Mode mode = COPY, delete_func del = NULL, uint32 extra = 0)
+    {
+        _mybuf = false;
         switch(mode)
         {
-            case COPY:
-                _allocate(size + extra);
-                append(buf, size);
-                break;
+        case COPY:
+            _allocate(size + extra);
+            append(buf, size);
+            break;
 
-            case TAKE_OVER:
-                _mybuf = true; // fallthrough
-            case REUSE:
-                _buf = (uint8*)buf;
-                _res = size;
+        case TAKE_OVER:
+            _mybuf = true; // fallthrough
+        case REUSE:
+            _buf = (uint8*)buf;
+            _res = size;
+            _size = size;
+        }
+    }
+
+    void init(ByteBuffer& bb, Mode mode = COPY, uint32 extra = 0)
+    {
+        _allocfunc = bb._allocfunc;
+
+        switch(mode)
+        {
+        case COPY:
+            reserve(bb.size() + extra);
+            append(bb);
+            break;
+
+        case TAKE_OVER:
+        case REUSE:
+            _mybuf = bb._mybuf;
+            _delfunc = bb._delfunc;
+            _buf = bb._buf;
+            _res = bb._res;
+            _size = bb._size;
+            _growable = bb._growable;
+            break;
+        }
+
+        if(mode == TAKE_OVER)
+        {
+            bb._buf = NULL;
+            bb._size = 0;
+            bb._res = 0;
         }
     }
 
@@ -110,12 +150,12 @@ public:
         _delete();
         reset();
     }
-    
+
     inline void reset(void)
     {
         _rpos = _wpos = _size = 0;
     }
-    
+
     void resize(uint32 newsize)
     {
         reserve(newsize);
@@ -123,7 +163,7 @@ public:
         _wpos = newsize;
         _size = newsize;
     }
-    
+
     void reserve(uint32 newsize)
     {
         if(_res < newsize)
@@ -131,7 +171,8 @@ public:
     }
 
     // ---------------------- Write methods -----------------------
-    
+
+    BB_MAKE_WRITE_OP(char);
     BB_MAKE_WRITE_OP(uint8);
     BB_MAKE_WRITE_OP(uint16);
     BB_MAKE_WRITE_OP(uint32);
@@ -139,13 +180,13 @@ public:
     BB_MAKE_WRITE_OP(float);
     BB_MAKE_WRITE_OP(double);
     BB_MAKE_WRITE_OP(int);
-    
+
     ByteBuffer &operator<<(bool value)
     {
         append<char>((char)value);
         return *this;
     }
-    
+
     ByteBuffer &operator<<(const char *str)
     {
         append((uint8 *)str, str ? strlen(str) : 0);
@@ -159,9 +200,10 @@ public:
         append((uint8)0);
         return *this;
     }
-    
+
     // -------------------- Read methods --------------------
-    
+
+    BB_MAKE_READ_OP(char);
     BB_MAKE_READ_OP(uint8);
     BB_MAKE_READ_OP(uint16);
     BB_MAKE_READ_OP(uint32);
@@ -189,7 +231,7 @@ public:
             value += c;
         return *this;
     }
-    
+
     // --------------------------------------------------
 
     uint32 rpos() const { return _rpos; }
@@ -230,8 +272,16 @@ public:
         _rpos += len;
     }
 
+    void skipRead(uint32 len)
+    {
+        _rpos += len;
+    }
+
     inline const uint8 *contents() const { return _buf; }
     inline       uint8 *contents()       { return _buf; }
+
+    inline const void *ptr() const { return _buf; }
+    inline       void *ptr()       { return _buf; }
 
     inline uint32 size() const { return _size; }
 
@@ -242,7 +292,7 @@ public:
 
     inline uint32 readable(void) const { return size() - rpos(); }
     inline uint32 writable(void) const { return size() - wpos(); } // free space left before realloc will occur
-    
+
     template <typename T> void append(T value)
     {
         ToLittleEndian<T>(value);
@@ -272,7 +322,7 @@ public:
     {
         memcpy(_buf + pos, src, bytes);
     }
-    
+
     template <typename T> void put(uint32 pos, T value)
     {
         if(pos >= size())
@@ -292,9 +342,24 @@ public:
         _buf = (uint8*)p;
     }
 
+    void _setAllocFunc(allocator_func f)
+    {
+        _allocfunc = f;
+    }
+
     void _setDelFunc(delete_func f)
     {
         _delfunc = f;
+    }
+
+    void _setSize(uint32 s)
+    {
+        _size = s;
+    }
+
+    void _setReserved(uint32 s)
+    {
+        _res = s;
     }
 
 protected:
@@ -318,16 +383,19 @@ protected:
         if(!_growable && _buf) // only throw if we already have a buf
             BYTEBUFFER_EXCEPT(this, "_alloc+locked", s);
 
-        uint8 *newbuf = (uint8*)malloc(s);
+        // dangerous: It's up to the user to be sure that _allocfunc and _delfunc are matching
+        uint8 *newbuf = (uint8*)(_allocfunc ? _allocfunc(s) : new char[s]);
         if(_buf)
         {
             memcpy(newbuf, _buf, _size);
             _delete();
         }
-        _delfunc = free;
         _buf = newbuf;
         _res = s;
         _mybuf = true;
+
+        if (!_allocfunc)
+            _delfunc = NULL;
     }
 
     void _enlargeIfReq(uint32 minSize)
@@ -340,7 +408,8 @@ protected:
             _allocate(a);
         }
     }
-  
+
+
 };
 
 

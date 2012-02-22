@@ -115,8 +115,8 @@ struct PackDef
     std::string relPath;
     std::string solidBlockName;
     std::string keyStr;
-    uint8 level;    // LVPACOMP_INHERIT by default
-    uint8 algo;     // LVPAPACK_INHERIT by default
+    LVPAComprLevels level;    // LVPACOMP_INHERIT by default
+    LVPAAlgos algo;     // LVPAPACK_INHERIT by default
     uint8 encrypt;  // LVPAENCR_INHERIT by default
     bool solid;     // this is needed because "" is also a valid solid block name
     
@@ -127,8 +127,8 @@ struct PackDef
 };
 
 // some globals
-static uint8 g_hdrLevel = LVPACOMP_INHERIT;
-static uint8 g_hdrAlgo = LVPAPACK_INHERIT;
+static LVPAComprLevels g_hdrLevel = LVPACOMP_INHERIT;
+static LVPAAlgos g_hdrAlgo = LVPAPACK_INHERIT;
 static bool g_hdrEncr = false;
 static bool g_usingKey = false;
 static bool g_checkCRC = true; // during extraction
@@ -651,7 +651,7 @@ static void unknown(char *what)
 // parses for example -c0 (no compression), -cnone, -c9 (max. default algo), -clzma (default lzma), -clzma9 (max lzma), -clzo3 (fast lzo), etc
 // also supports -ci9 (use max level of inherited compression), -ci (inherit everything) -clzoi (use lzo, but inherit compression level)
 // this function is used for -H, -S, -c.
-static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
+static bool parseCompressString(const char *str, LVPAAlgos *algo, LVPAComprLevels *level)
 {
     uint32 l = strlen(str);
 
@@ -662,7 +662,7 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
     {
         if(isdigit(str[0]))
         {
-            *level = atoi(str);
+            *level = (LVPAComprLevels)atoi(str);
             if(algo)
                 *algo = LVPAPACK_INHERIT; // this also serves as default if nothing else can be chosen
             return true;
@@ -684,7 +684,7 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
             if(str[0] == 'i')
             {
                 *algo = LVPAPACK_INHERIT;
-                *level = LVPAPACK_INHERIT;
+                *level = LVPACOMP_INHERIT;
                 return parseCompressString(str + 1, NULL, level);
             }
 
@@ -694,7 +694,7 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
                 if(!strnicmp(str, "lzo", 3))
                 {
                     *algo = LVPAPACK_LZO1X;
-                    *level = LVPAPACK_INHERIT;
+                    *level = LVPACOMP_INHERIT;
                     return parseCompressString(str + 3, NULL, level);
                 }
 #endif
@@ -702,7 +702,7 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
                 if(!strnicmp(str, "zip", 3))
                 {
                     *algo = LVPAPACK_DEFLATE;
-                    *level = LVPAPACK_INHERIT;
+                    *level = LVPACOMP_INHERIT;
                     return parseCompressString(str + 3, NULL, level);
                 }
 #endif
@@ -710,7 +710,7 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
                 if(!strnicmp(str, "lzf", 3))
                 {
                     *algo = LVPAPACK_LZF;
-                    *level = LVPAPACK_INHERIT;
+                    *level = LVPACOMP_INHERIT;
                     return parseCompressString(str + 3, NULL, level);
                 }
 #endif
@@ -722,14 +722,14 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
                     if(!strnicmp(str, "lzma", 4))
                     {
                         *algo = LVPAPACK_LZMA;
-                        *level = LVPAPACK_INHERIT;
+                        *level = LVPACOMP_INHERIT;
                         return parseCompressString(str + 4, NULL, level);
                     }
 #endif
                     if(!strnicmp(str, "none", 4))
                     {
                         *algo = LVPAPACK_NONE;
-                        *level = LVPAPACK_NONE;
+                        *level = LVPACOMP_NONE;
                         return true;
                     }
 
@@ -741,7 +741,7 @@ static bool parseCompressString(const char *str, uint8 *algo, uint8 *level)
                         if(!strnicmp(str, "lzham", 5))
                         {
                             *algo = LVPAPACK_LZHAM;
-                            *level = LVPAPACK_INHERIT;
+                            *level = LVPACOMP_INHERIT;
                             return parseCompressString(str + 5, NULL, level);
                         }
 #endif
