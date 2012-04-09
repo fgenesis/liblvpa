@@ -625,7 +625,7 @@ int TestLVPA_CreateAndAppend5()
 #ifdef  LVPA_SUPPORT_TTVFS
 
 #include "VFS.h"
-#include "VFSHelperLVPA.h"
+#include "VFSLVPAArchiveLoader.h"
 
 #ifdef VFS_NAMESPACE
   using namespace VFS_NAMESPACE;
@@ -636,6 +636,41 @@ int TestLVPA_CreateAndAppend5()
     VFSFile *vf = vfs.GetFile("FILE_" #mem); \
     if(!vf) return 1; \
     if(memcmp((const char*)&mem[0], (const char*)vf->getBuf(), (size_t)vf->size())) return 3; \
+}
+
+static void lvpa_setkey(void *opaque, void *plvpa, const char *id)
+{
+    if(strcmp(id, "LVPA"))
+        return;
+    LVPALoadParams *params = (LVPALoadParams*)opaque;
+    LVPAFile *lvpa = (LVPAFile*)plvpa;
+    lvpa->SetMasterKey((uint8*)params->key, params->keylen);
+}
+
+int TestLVPA_VFS_Simple()
+{
+    INIT_TEST()
+    {
+        LVPAFile lvpa;
+        ADD_MEMBLOCK(v5);
+        ADD_MEMBLOCK(v6);
+        ADD_MEMBLOCK(b1);
+        ADD_MEMBLOCK(i1);
+        ADD_MEMBLOCK(i2);
+        lvpa.SaveAs("~test.lvpa.tmp", LVPACOMP_NONE, LVPAPACK_NONE, false);
+        lvpa.Clear(false); // otherwise we would attempt to delete const memory
+    }
+    VFSHelper vfs;
+    vfs.AddArchiveLoader(new VFSLVPAArchiveLoader);
+    vfs.LoadFileSysRoot(false);
+    vfs.Prepare();
+    vfs.AddArchive("~test.lvpa.tmp", false, "");
+    DO_CHECK_VFS(v5);
+    DO_CHECK_VFS(v6);
+    DO_CHECK_VFS(b1);
+    DO_CHECK_VFS(i1);
+    DO_CHECK_VFS(i2);
+    return 0;
 }
 
 int TestLVPA_VFS_ScrambledLoader()
@@ -652,11 +687,11 @@ int TestLVPA_VFS_ScrambledLoader()
         lvpa.SaveAs("~test.lvpa.tmp", LVPACOMP_NONE, LVPAPACK_NONE, false);
         lvpa.Clear(false); // otherwise we would attempt to delete const memory
     }
-    VFSHelperLVPA vfs;
-    LVPAFile lvpa;
-    lvpa.LoadFrom("~test.lvpa.tmp");
-    vfs.LoadBaseContainer(&lvpa, false);
+    VFSHelper vfs;
+    vfs.AddArchiveLoader(new VFSLVPAArchiveLoader);
+    vfs.LoadFileSysRoot(false);
     vfs.Prepare();
+    vfs.AddArchive("~test.lvpa.tmp", false, "");
     DO_CHECK_VFS(v5);
     DO_CHECK_VFS(v6);
     DO_CHECK_VFS(b1);
@@ -682,13 +717,16 @@ int TestLVPA_VFS_ScrambledLoaderEncrypted()
         lvpa.Clear(false); // otherwise we would attempt to delete const memory
     }
 
-    VFSHelperLVPA vfs;
-    LVPAFile lvpa;
-    lvpa.SetMasterKey(&g_masterKey[0], LVPAHash_Size);
-
-    lvpa.LoadFrom("~test.lvpa.tmp");
-    vfs.LoadBaseContainer(&lvpa, false);
+    VFSHelper vfs;
+    vfs.AddArchiveLoader(new VFSLVPAArchiveLoader);
+    vfs.LoadFileSysRoot(false);
     vfs.Prepare();
+
+    LVPALoadParams p;
+    p.callback = &lvpa_setkey;
+    p.key = &g_masterKey[0];
+    p.keylen = LVPAHash_Size;
+    vfs.AddArchive("~test.lvpa.tmp", false, "", &p);
 
     DO_CHECK_VFS(v5);
     DO_CHECK_VFS(v6);

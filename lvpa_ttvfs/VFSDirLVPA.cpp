@@ -12,17 +12,26 @@ VFS_NAMESPACE_START
   using namespace LVPA_NAMESPACE;
 #endif
 
-VFSDirLVPA::VFSDirLVPA(LVPAFile *f, bool asSubdir)
-: VFSDir(asSubdir ? f->GetMyName() : StripLastPath(f->GetMyName()).c_str()), _lvpa(f)
+VFSDirLVPA::VFSDirLVPA(VFSFile *vf, LVPAFile *lvpa, bool asSubdir)
+: VFSDir(asSubdir ? vf->fullname() : StripLastPath(vf->fullname()).c_str()), _lvpa(lvpa), _origin(vf)
 {
+    _origin->ref++;
+}
+
+VFSDirLVPA::~VFSDirLVPA()
+{
+    delete _lvpa; // TODO: possibility to keep the archive alive anyway?
+
+    // Must be done *after* deleting the LVPA file!
+    _origin->ref--;
 }
 
 VFSDir *VFSDirLVPA::createNew(const char *dir) const
 {
-    return new VFSDir(dir); // inside an LVPA file; only the base dir can be a real VFSDirLVPA. (FIXME: is this really correct?)
+    return new VFSDir(dir); // inside an LVPA file; only the base dir can be a real VFSDirLVPA.
 }
 
-unsigned int VFSDirLVPA::load(const char * /*ignored*/)
+unsigned int VFSDirLVPA::load(bool /*ignored*/)
 {
     unsigned int ctr = 0;
     for(uint32 i = 0; i < _lvpa->HeaderCount(); i++)
@@ -35,7 +44,10 @@ unsigned int VFSDirLVPA::load(const char * /*ignored*/)
         }
         // solid blocks are no real files, and scrambled files without filename can't be read anyways, at this point
         if(hdr.flags & LVPAFLAG_SOLIDBLOCK || (hdr.flags & LVPAFLAG_SCRAMBLED && hdr.filename.empty()))
+        {
+            ++ctr;
             continue;
+        }
 
         VFSFileLVPA *file = new VFSFileLVPA(_lvpa, i);
         addRecursive(file, true);
@@ -43,6 +55,11 @@ unsigned int VFSDirLVPA::load(const char * /*ignored*/)
         ++ctr;
     }
     return ctr;
+}
+
+void VFSDirLVPA::clearGarbage(void)
+{
+    _lvpa->FreeUnused();
 }
 
 VFS_NAMESPACE_END

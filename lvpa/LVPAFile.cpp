@@ -39,6 +39,47 @@ static const char* gMagic = LVPA_MAGIC;
 static const uint32 gVersion = LVPA_VERSION;
 
 
+static bool default_open(const char *fn, void *opaque)
+{
+    LVPAFileReader *rd = (LVPAFileReader*)opaque;
+    if(!rd->io)
+        rd->io = fopen(fn, "rb");
+    return !!rd->io;
+}
+
+
+static size_t default_read(void *opaque, void *ptr, size_t rpos, size_t bytes)
+{
+    LVPAFileReader *rd = (LVPAFileReader*)opaque;
+    FILE *f = (FILE*)rd->io;
+    size_t pos = ftell(f);
+    if(pos != rpos)
+        if(fseek(f, rpos, SEEK_SET) != 0)
+            return 0;
+
+    return fread(ptr, 1, bytes, f);
+}
+
+static void default_close(void *opaque)
+{
+    LVPAFileReader *rd = (LVPAFileReader*)opaque;
+    if(rd->io)
+    {
+        fclose((FILE*)rd->io);
+        rd->io = NULL;
+    }
+}
+
+static void initDefaultFileReader(LVPAFileReader *rd)
+{
+    memset(rd, 0, sizeof(LVPAFileReader)); // just in case
+    rd->opaque = rd;
+    rd->closeF = &default_close;
+    rd->openF = &default_open;
+    rd->readF = &default_read;
+}
+
+// TODO: this does not belong here! Move to lvpak!
 static int drawCompressProgressBar(void *, uint64 in, uint64 out)
 {
     if(gProgress)
@@ -194,9 +235,10 @@ ByteBuffer &operator << (ByteBuffer& bb, LVPAFileHeader& h)
 
 
 LVPAFile::LVPAFile()
-: _handle(NULL), _realSize(0), _packedSize(0)
+: _realSize(0), _packedSize(0)
 {
     _mtrand = new MTRand;
+    initDefaultFileReader(&reader);
 }
 
 LVPAFile::~LVPAFile()
@@ -229,19 +271,17 @@ void LVPAFile::Clear(bool del /* = true */)
 
 bool LVPAFile::_OpenFile(void)
 {
-    if(!_handle)
-        _handle = fopen(_ownName.c_str(), "rb");
-
-    return _handle != NULL;
+    return reader.open(_ownName.c_str());
 }
 
 void LVPAFile::_CloseFile(void)
 {
-    if(_handle)
-    {
-        fclose((FILE*)_handle);
-        _handle = NULL;
-    }
+   reader.close();
+}
+
+void LVPAFile::Close(void)
+{
+    _CloseFile();
 }
 
 uint32 LVPAFile::GetId(const char *fn)
@@ -479,9 +519,14 @@ bool LVPAFile::Drop(uint32 id)
     return !hdrRef.otherMem;
 }
 
-bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NONE */)
+bool LVPAFile::LoadFrom(const char *fn, LVPAFileReader *rd /* = NULL */)
 {
     _ownName = fn;
+
+    if(rd)
+        reader = *rd;
+    else
+        initDefaultFileReader(&reader);
 
     if(!_OpenFile())
         return false;
@@ -491,7 +536,7 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
     uint32 bytes;
     char magic[4];
 
-    bytes = fread(magic, 1, 4, (FILE*)_handle);
+    bytes = reader.read(magic, 4);
     if(bytes != 4 || memcmp(magic, gMagic, 4))
     {
         _CloseFile();
@@ -502,7 +547,7 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
     LVPAMasterHeader masterHdr;
 
     masterBuf.resize(sizeof(LVPAMasterHeader));
-    bytes = fread((void*)masterBuf.contents(), 1, sizeof(LVPAMasterHeader), (FILE*)_handle);
+    bytes = reader.read((void*)masterBuf.contents(), sizeof(LVPAMasterHeader));
     masterBuf >> masterHdr; // not reading it directly via fread() is intentional
 
     DEBUG(logdebug("master: version: %u", masterHdr.version));
@@ -561,8 +606,7 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
     // ... space for additional data/headers here...
 
     // seek to the file header's offset if we are not yet there
-    if(ftell((FILE*)_handle) != masterHdr.hdrOffset)
-        fseek((FILE*)_handle, masterHdr.hdrOffset, SEEK_SET);
+    reader.seek(masterHdr.hdrOffset);
 
     std::auto_ptr<ICompressor> hdrBuf(allocCompressor(masterHdr.algo));
 
@@ -576,7 +620,7 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
 
     // read the (packed) file headers
     hdrBuf->resize(masterHdr.packedHdrSize);
-    bytes = fread((void*)hdrBuf->contents(), 1, masterHdr.packedHdrSize, (FILE*)_handle);
+    bytes = reader.read((void*)hdrBuf->contents(), masterHdr.packedHdrSize);
     if(bytes != masterHdr.packedHdrSize)
     {
         logerror("Can't read headers, file is corrupt");
@@ -656,17 +700,6 @@ bool LVPAFile::LoadFrom(const char *fn, LVPALoadFlags loadFlags /* = LVPALOAD_NO
     _CreateIndexes();
     _CalcOffsets(masterHdr.dataOffs);
 
-    // iterate over all files if requested
-    if(loadFlags & LVPALOAD_SOLID)
-    {
-        for(uint32 i = 0; i < masterHdr.hdrEntries; ++i)
-            if(_headers[i].flags & LVPAFLAG_SOLID || loadFlags & LVPALOAD_ALL)
-                if(!(_headers[i].flags & LVPAFLAG_SCRAMBLED))
-                    _PrepareFile(_headers[i], true);
-
-        if(loadFlags == LVPALOAD_ALL)
-            _CloseFile(); // got everything, file can be closed
-    }
     // leave the file open, as we may want to read more later on
 
     return true;
@@ -1376,10 +1409,9 @@ bool LVPAFile::_LoadFile(memblock& target, LVPAFileHeader& h)
         return false;
 
     // seek if necessary
-    if(ftell((FILE*)_handle) != h.offset)
-        fseek((FILE*)_handle, h.offset, SEEK_SET);
+    reader.seek(h.offset);
 
-    uint32 bytes = fread(target.ptr, 1, target.size, (FILE*)_handle);
+    uint32 bytes = reader.read(target.ptr, target.size);
     if(bytes != h.packedSize)
     {
         logerror("Unable to read enough data for file '%s'", h.filename.c_str());
@@ -1450,13 +1482,13 @@ bool LVPAFile::AllGood(void) const
     return true;
 }
 
-void LVPAFile::SetMasterKey(const uint8 *key, uint32 size)
+void LVPAFile::SetMasterKey(const void *key, uint32 size)
 {
     _masterKey.resize(size);
     if(size)
     {
         memcpy(&_masterKey[0], key, size);
-        LVPAHash::Calc(&_masterSalt[0], key, size);
+        LVPAHash::Calc(&_masterSalt[0], (const uint8*)key, size);
     }
 }
 

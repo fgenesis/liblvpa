@@ -61,6 +61,7 @@ int main(int argc, char *argv[])
     DO_TESTRUN(TestLVPA_CreateAndAppend5());
 
 #ifdef LVPA_SUPPORT_TTVFS
+    DO_TESTRUN(TestLVPA_VFS_Simple());
     DO_TESTRUN(TestLVPA_VFS_ScrambledLoader());
     DO_TESTRUN(TestLVPA_VFS_ScrambledLoaderEncrypted());
 #endif

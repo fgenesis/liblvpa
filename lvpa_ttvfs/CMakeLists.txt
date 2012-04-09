@@ -21,10 +21,10 @@ VFSDirLVPA.cpp
 VFSDirLVPA.h
 VFSFileLVPA.cpp
 VFSFileLVPA.h
-VFSHelperLVPA.cpp
-VFSHelperLVPA.h
 VFSLoaderLVPA.cpp
 VFSLoaderLVPA.h
+VFSLVPAArchiveLoader.cpp
+VFSLVPAArchiveLoader.h
 )
 
 add_library(lvpa_ttvfs ${lvpa_ttvfs_SRC})

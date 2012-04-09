@@ -29,8 +29,6 @@ bool VFSFileLVPA::open(const char *mode /* = NULL */)
 {
     VFS_GUARD_OPT(this);
 
-    // TODO: allow opening a different file than provided in the ctor
-
     _pos = 0;
     if(mode)
     {
@@ -168,7 +166,7 @@ const void *VFSFileLVPA::getBuf(allocator_func alloc /* = NULL */, delete_func d
     const uint8 *buf = mb.ptr;
     if(buf && _mode.find("b") == std::string::npos) // text mode?
     {
-        _fixedStr = new char[mb.size + 4];
+        _fixedStr = allocHelper(alloc, mb.size + 4);
         strnNLcpy(_fixedStr, (const char*)buf);
         buf = (const uint8*)_fixedStr;
     }

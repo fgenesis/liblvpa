@@ -49,14 +49,6 @@ enum LVPAFileFlags
                                 // If ENCRYPTED and SCRAMBLED are combined, the key to encrypt the file will be HASH(master key .. HASH(filename))
 };
 
-// TODO: Deprecate this!
-enum LVPALoadFlags
-{
-    LVPALOAD_NONE     = 0x00, // load only headers
-    LVPALOAD_SOLID    = 0x01, // load all solid blocks and all files within
-    LVPALOAD_ALL      = 0xFF  // load all files
-};
-
 enum LVPAAlgos
 {
     LVPAPACK_NONE,
@@ -157,6 +149,22 @@ struct LVPAFileHeader
 
 };
 
+struct LVPAFileReader
+{
+    size_t (*readF)(void *io, void *buf, size_t offs, size_t bytes);
+    bool (*openF)(const char *fn, void *opaque);
+    void (*closeF)(void *opaque);
+
+    void *opaque;
+    void *io;
+    size_t rpos;
+
+    inline bool open(const char *fn) { rpos = 0; return openF(fn, opaque); }
+    inline void close() { closeF(opaque); }
+    inline size_t read(void *buf, size_t bytes) { size_t r = readF(opaque, buf, rpos, bytes); rpos += r; return r; }
+    inline void seek(size_t pos) { rpos = pos; }
+};
+
 typedef std::map<std::string, uint32> LVPAIndexMap; // maps a file name to its internal file number (which is the index of _headers vector)
 
 class MTRand;
@@ -166,9 +174,10 @@ class LVPAFile
 public:
     LVPAFile();
     ~LVPAFile();
-    bool LoadFrom(const char *fn, LVPALoadFlags loadFlags = LVPALOAD_NONE);
+    bool LoadFrom(const char *fn, LVPAFileReader *rd = NULL);
     virtual bool Save(LVPAComprLevels compression = LVPA_DEFAULT_LEVEL, LVPAAlgos algo = LVPAPACK_INHERIT, bool encrypt = false);
     virtual bool SaveAs(const char *fn, LVPAComprLevels compression = LVPA_DEFAULT_LEVEL, LVPAAlgos algo = LVPAPACK_INHERIT, bool encrypt = false);
+    void Close(void); // Reopened on demand anyway.
 
     virtual void Add(const char *fn, memblock mb, const char *solidBlockName = NULL, uint8 algo = LVPAPACK_INHERIT,
         uint8 level = LVPACOMP_INHERIT, uint8 encrypt = LVPAENCR_INHERIT, bool scramble = false); // adds a file, overwriting if exists
@@ -202,7 +211,7 @@ public:
     const LVPAFileHeader& GetFileInfo(uint32 i) const;
 
     // encryption related
-    void SetMasterKey(const uint8 *key, uint32 size);
+    void SetMasterKey(const void *key, uint32 size);
 
     // for stats. note: only call these directly after load/save, and NOT after files were added/removed!
     inline uint32 GetRealSize(void) const { return _realSize; }
@@ -215,7 +224,7 @@ private:
     std::string _ownName;
     LVPAIndexMap _indexes;
     std::vector<LVPAFileHeader> _headers;
-    void *_handle; // its a FILE *
+    LVPAFileReader reader;
     MTRand *_mtrand;
     uint32 _realSize, _packedSize; // for stats
 

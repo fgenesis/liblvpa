@@ -15,7 +15,6 @@ std::string stringToUpper(const std::string& s);
 std::string stringToLower(const std::string& s);
 void makeUppercase(std::string& s);
 void makeLowercase(std::string& s);
-bool FileExists(std::string);
 bool IsDirectory(const char *);
 bool CreateDir(const char*);
 bool CreateDirRec(const char*);

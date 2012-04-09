@@ -13,16 +13,18 @@ VFS_NAMESPACE_START
 class VFSDirLVPA : public VFSDir
 {
 public:
-    VFSDirLVPA(LVPA_NAMESPACE_IMPL LVPAFile *f, bool asSubdir);
-    virtual ~VFSDirLVPA() {};
-    virtual unsigned int load(const char *dir = NULL);
+    VFSDirLVPA(VFSFile *vf, LVPA_NAMESPACE_IMPL LVPAFile *f, bool asSubdir);
+    virtual ~VFSDirLVPA();
+    virtual unsigned int load(bool recursive); // recursive is ingored
     virtual VFSDir *createNew(const char *dir) const;
     virtual const char *getType(void) const { return "VFSDirLVPA"; }
+    virtual void clearGarbage(void);
 
     inline LVPA_NAMESPACE_IMPL LVPAFile *getLVPA(void) { return _lvpa; }
 
 protected:
     LVPA_NAMESPACE_IMPL LVPAFile *_lvpa;
+    VFSFile *_origin;
 };
 
 VFS_NAMESPACE_END

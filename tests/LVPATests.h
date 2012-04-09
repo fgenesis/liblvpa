@@ -30,6 +30,7 @@ int TestLVPA_CreateAndAppend4();
 int TestLVPA_CreateAndAppend5();
 
 #ifdef  LVPA_SUPPORT_TTVFS
+int TestLVPA_VFS_Simple();
 int TestLVPA_VFS_ScrambledLoader();
 int TestLVPA_VFS_ScrambledLoaderEncrypted();
 #endif

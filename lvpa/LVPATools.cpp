@@ -205,21 +205,6 @@ void GetFileListRecursive(std::string dir, StringList& files, bool withQueriedDi
     }
 }
 
-bool FileExists(const char *fn)
-{
-#ifdef _WIN32
-    FILE *fp = fopen(fn, "rb");
-    if(fp)
-    {
-        fclose(fp);
-        return true;
-    }
-    return false;
-#else
-    return access(fn, F_OK) == 0;
-#endif
-}
-
 // must return true if creating the directory was successful
 bool CreateDir(const char *dir)
 {
