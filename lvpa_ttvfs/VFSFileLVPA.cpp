@@ -99,7 +99,7 @@ unsigned int VFSFileLVPA::write(const void *src, unsigned int bytes)
 {
     VFS_GUARD_OPT(this);
     if(getpos() + bytes >= size())
-        size(getpos() + bytes); // enlarge if necessary
+        _setsize(getpos() + bytes); // enlarge if necessary
 
     memblock data = _lvpa->Get(_headerId);
     memcpy(data.ptr + getpos(), src, bytes);
@@ -113,11 +113,11 @@ vfspos VFSFileLVPA::size(void)
     return _size;
 }
 
-vfspos VFSFileLVPA::size(vfspos newsize)
+void VFSFileLVPA::_setsize(vfspos newsize)
 {
     VFS_GUARD_OPT(this);
     if(newsize == size())
-        return newsize;
+        return;
 
     memblock data = _lvpa->Get(_headerId);
     const LVPAFileHeader& hdr = _lvpa->GetFileInfo(_headerId);
@@ -141,7 +141,6 @@ vfspos VFSFileLVPA::size(vfspos newsize)
         memset(mb.ptr + data.size, 0, n - data.size + 4); // zero out remaining (with extra bytes)
         _lvpa->Add(hdr.filename.c_str(), mb, solidBlockName, hdr.algo, hdr.level); // overwrite old entry
     }
-    return n;
 }
 
 const void *VFSFileLVPA::getBuf(allocator_func alloc /* = NULL */, delete_func del /* = NULL */)

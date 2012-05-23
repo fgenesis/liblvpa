@@ -13,7 +13,7 @@ VFS_NAMESPACE_START
 class VFSDirLVPA : public VFSDir
 {
 public:
-    VFSDirLVPA(VFSFile *vf, LVPA_NAMESPACE_IMPL LVPAFile *f, bool asSubdir);
+    VFSDirLVPA(VFSFile *vf, LVPA_NAMESPACE_IMPL LVPAFile *f);
     virtual ~VFSDirLVPA();
     virtual unsigned int load(bool recursive); // recursive is ingored
     virtual VFSDir *createNew(const char *dir) const;
@@ -24,7 +24,7 @@ public:
 
 protected:
     LVPA_NAMESPACE_IMPL LVPAFile *_lvpa;
-    VFSFile *_origin;
+    VFSFile *_vlvpa;
 };
 
 VFS_NAMESPACE_END

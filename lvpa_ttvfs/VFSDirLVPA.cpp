@@ -12,10 +12,10 @@ VFS_NAMESPACE_START
   using namespace LVPA_NAMESPACE;
 #endif
 
-VFSDirLVPA::VFSDirLVPA(VFSFile *vf, LVPAFile *lvpa, bool asSubdir)
-: VFSDir(asSubdir ? vf->fullname() : StripLastPath(vf->fullname()).c_str()), _lvpa(lvpa), _origin(vf)
+VFSDirLVPA::VFSDirLVPA(VFSFile *vf, LVPAFile *lvpa)
+: VFSDir(vf->fullname()), _lvpa(lvpa), _vlvpa(vf)
 {
-    _origin->ref++;
+    _vlvpa->ref++;
 }
 
 VFSDirLVPA::~VFSDirLVPA()
@@ -23,7 +23,7 @@ VFSDirLVPA::~VFSDirLVPA()
     delete _lvpa; // TODO: possibility to keep the archive alive anyway?
 
     // Must be done *after* deleting the LVPA file!
-    _origin->ref--;
+    _vlvpa->ref--;
 }
 
 VFSDir *VFSDirLVPA::createNew(const char *dir) const
@@ -50,7 +50,7 @@ unsigned int VFSDirLVPA::load(bool /*ignored*/)
         }
 
         VFSFileLVPA *file = new VFSFileLVPA(_lvpa, i);
-        addRecursive(file, true);
+        addRecursive(file, true, VFSDir::NONE);
         file->ref--; // file was added and refcount increased, decref here
         ++ctr;
     }

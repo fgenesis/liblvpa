@@ -9,7 +9,7 @@ class VFSLVPAArchiveLoader : public VFSArchiveLoader
 {
 public:
     virtual ~VFSLVPAArchiveLoader() {}
-    virtual VFSDir *Load(VFSFile *arch, bool asSubdir, VFSLoader **ldr, void *opaque = NULL);
+    virtual VFSDir *Load(VFSFile *arch, VFSLoader **ldr, void *opaque = NULL);
 };
 
 // used as 'opaque' pointer - see VFSArchiveLoader docs

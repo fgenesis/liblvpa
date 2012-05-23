@@ -33,7 +33,7 @@ static bool lvpa_open_func(const char * /*ignored*/, void *p)
     return vf->open("rb");
 }
 
-VFSDir *VFSLVPAArchiveLoader::Load(VFSFile *vf, bool asSubdir, VFSLoader **ldr, void *opaque /* = NULL */)
+VFSDir *VFSLVPAArchiveLoader::Load(VFSFile *vf, VFSLoader **ldr, void *opaque /* = NULL */)
 {
     char buf[4];
     vf->open("rb");
@@ -65,7 +65,7 @@ VFSDir *VFSLVPAArchiveLoader::Load(VFSFile *vf, bool asSubdir, VFSLoader **ldr, 
         return NULL;
     }
 
-    VFSDirLVPA *vd = new VFSDirLVPA(vf, lvpa, asSubdir);
+    VFSDirLVPA *vd = new VFSDirLVPA(vf, lvpa);
 
     if(vd->load(true))
     {
