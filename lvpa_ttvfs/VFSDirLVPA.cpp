@@ -16,6 +16,7 @@ VFSDirLVPA::VFSDirLVPA(VFSFile *vf, LVPAFile *lvpa)
 : VFSDir(vf->fullname()), _lvpa(lvpa), _vlvpa(vf)
 {
     _vlvpa->ref++;
+    _setOrigin(this);
 }
 
 VFSDirLVPA::~VFSDirLVPA()
@@ -28,7 +29,7 @@ VFSDirLVPA::~VFSDirLVPA()
 
 VFSDir *VFSDirLVPA::createNew(const char *dir) const
 {
-    return new VFSDir(dir); // inside an LVPA file; only the base dir can be a real VFSDirLVPA.
+    return VFSDir::createNew(dir); // inside an LVPA file; only the base dir can be a real VFSDirLVPA.
 }
 
 unsigned int VFSDirLVPA::load(bool /*ignored*/)
@@ -57,9 +58,15 @@ unsigned int VFSDirLVPA::load(bool /*ignored*/)
     return ctr;
 }
 
-void VFSDirLVPA::clearGarbage(void)
+void VFSDirLVPA::clearGarbage()
 {
     _lvpa->FreeUnused();
+}
+
+bool VFSDirLVPA::close()
+{
+    _lvpa->Close();
+    return true;
 }
 
 VFS_NAMESPACE_END

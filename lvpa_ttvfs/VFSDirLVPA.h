@@ -17,10 +17,11 @@ public:
     virtual ~VFSDirLVPA();
     virtual unsigned int load(bool recursive); // recursive is ingored
     virtual VFSDir *createNew(const char *dir) const;
-    virtual const char *getType(void) const { return "VFSDirLVPA"; }
-    virtual void clearGarbage(void);
+    virtual const char *getType() const { return "VFSDirLVPA"; }
+    virtual void clearGarbage();
+    virtual bool close();
 
-    inline LVPA_NAMESPACE_IMPL LVPAFile *getLVPA(void) { return _lvpa; }
+    inline LVPA_NAMESPACE_IMPL LVPAFile *getLVPA() { return _lvpa; }
 
 protected:
     LVPA_NAMESPACE_IMPL LVPAFile *_lvpa;
