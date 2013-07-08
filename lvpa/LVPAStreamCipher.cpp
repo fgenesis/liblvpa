@@ -21,7 +21,7 @@ template <typename T> inline static void iswap(T& a, T& b)
 
 void ISymmetricCipher::WarmUp(uint32 size)
 {
-    volatile uint8 wrkmem[128]; // does not have to be initialized, we will never read from it
+    uint8 wrkmem[128]; // does not have to be initialized, we will never read from it
     uint32 i = 0;
     for( ; i < size; i += 128)
         Apply(wrkmem, 128);
@@ -82,7 +82,7 @@ void HPRC4LikeCipher::Init(const uint8 *key, uint32 size)
 
 #if IS_BIG_ENDIAN
     for(uint32 i = 0; i < keycopy.size(); ++i)
-        ByteConverter::ToLittleEndian(keycopy[i]);
+        ToLittleEndian(keycopy[i]);
 #endif
 
     MTRand mt;

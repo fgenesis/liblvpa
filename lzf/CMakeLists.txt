@@ -1,6 +1,5 @@
 
 set(lzf_SRC
-crc32.h
 lzf.h
 lzfP.h
 lzf_c.c
